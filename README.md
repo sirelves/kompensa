@@ -15,7 +15,7 @@ Zero runtime dependencies.
 [![license](https://img.shields.io/npm/l/flowguard?color=blue)](./LICENSE)
 [![CI](https://github.com/sirelves/flowguard/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/flowguard/actions/workflows/ci.yml)
 
-[📈 Download trends](https://npm-stat.com/charts.html?package=flowguard) · [📦 npm](https://www.npmjs.com/package/flowguard) · [🐙 GitHub](https://github.com/sirelves/flowguard)
+[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [📈 Download trends](https://npm-stat.com/charts.html?package=flowguard) · [📦 npm](https://www.npmjs.com/package/flowguard) · [🐙 GitHub](https://github.com/sirelves/flowguard)
 
 <a href="https://npm-stat.com/charts.html?package=flowguard">
   <img src="https://nodei.co/npm-dl.png?height=3&months=3" alt="downloads chart" />
@@ -90,9 +90,9 @@ Not a framework, not a platform — **a small, typed library** that turns `try/c
 | Lifecycle hooks (start/retry/end/compensate)    | ✅     |
 | Persistent state (resume after crash)           | ✅     |
 | `MemoryStorage` adapter                         | ✅     |
-| `PostgresStorage` with advisory lock            | 🚧 v0.2 |
-| `RedisStorage` with Redlock-style lock          | 🚧 v0.2 |
-| Distributed lock (multi-worker safety)          | 🚧 v0.2 |
+| `PostgresStorage` with advisory lock            | ✅ v0.2 |
+| `RedisStorage` with Redlock-style lock          | ✅ v0.2 |
+| Distributed lock (multi-worker safety)          | ✅ v0.2 |
 | Parallel step groups (fan-out/fan-in)           | 🗓️ v0.3 |
 | OpenTelemetry adapter                           | 🗓️ v0.3 |
 | `useFlow()` React hook                          | 🗓️ v0.3 |
@@ -240,7 +240,7 @@ queue.process(async (job) => {
 | Works in browser / RN     | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Saga compensation         | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Durable state (crash-safe)| ✅ (w/ adapter) | ✅ | ✅ | ⚠️ | ❌ |
-| Distributed workers       | 🚧 v0.2 | ✅ | ✅ | ✅ | ❌ |
+| Distributed workers       | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Long-running (days/weeks) | ❌ | ✅ | ✅ | ⚠️ | ❌ |
 | Typed DSL                 | ✅ | ⚠️ | ❌ | ❌ | — |
 | Bundle size               | ~20 KB | 10+ MB | — | ~200 KB | 0 |
@@ -265,10 +265,26 @@ class MyStorage implements StorageAdapter {
 }
 ```
 
-**Coming in v0.2** (in-flight):
-- `flowguard/storage/postgres` — JSONB state + `pg_advisory_lock` for multi-worker safety
-- `flowguard/storage/redis` — Redlock-style lock with Lua-safe release
-- Integration tests running against real Postgres & Redis in CI
+**Durable adapters (v0.2):**
+
+```ts
+// Postgres — state in JSONB, lock via pg_advisory_lock
+import { Pool } from 'pg';
+import { PostgresStorage } from 'flowguard/storage/postgres';
+const storage = new PostgresStorage({ pool: new Pool({ connectionString }) });
+await storage.ensureSchema();
+
+// Redis — state as JSON, lock via SET NX PX with Lua-safe release
+import Redis from 'ioredis';
+import { RedisStorage } from 'flowguard/storage/redis';
+const storage = new RedisStorage({ client: new Redis(REDIS_URL) });
+```
+
+Both survive worker crashes:
+- **Postgres:** advisory lock releases when the holding connection closes
+- **Redis:** lock released via token-guarded Lua script, TTL server-enforced
+
+Integration tests run against real Postgres 17 + Redis 7 in CI. See [`docs/storage-adapters.md`](./docs/storage-adapters.md) for the full decision matrix.
 
 ---
 

@@ -6,6 +6,7 @@ export {
   PermanentError,
   TransientError,
   StepTimeoutError,
+  LockAcquisitionError,
   isPermanent,
   isTransient,
   serializeError,
@@ -32,6 +33,8 @@ export type {
   SerializedError,
   // Ports
   StorageAdapter,
+  Lock,
+  AcquireLockOptions,
   Logger,
   FlowHooks,
   // Events

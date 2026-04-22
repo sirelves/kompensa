@@ -226,13 +226,42 @@ export interface FlowHooks {
 }
 
 /**
+ * Handle returned by {@link StorageAdapter.acquireLock}. Call `release` when
+ * done to free the lock. Safe to call multiple times; subsequent calls are
+ * no-ops. `refresh` extends the TTL if the adapter supports it.
+ */
+export interface Lock {
+  release(): Promise<void>;
+  refresh?(): Promise<void>;
+}
+
+/**
+ * Options for {@link StorageAdapter.acquireLock}.
+ */
+export interface AcquireLockOptions {
+  /** Lock expiration in milliseconds. Set >= max expected execution time. */
+  ttlMs: number;
+  /** Max time to wait for the lock. `0` fails fast; default 30_000. */
+  timeoutMs: number;
+}
+
+/**
  * Storage adapter contract. Implementations persist flow state so executions
  * can be resumed, deduplicated, and observed.
+ *
+ * `acquireLock` is optional but **strongly recommended** for adapters used in
+ * multi-worker deployments. Without it, two workers handling the same
+ * `idempotencyKey` will both execute the flow concurrently.
  */
 export interface StorageAdapter {
   load(flowName: string, flowId: string): Promise<FlowState | null>;
   save(state: FlowState): Promise<void>;
   delete?(flowName: string, flowId: string): Promise<void>;
+  acquireLock?(
+    flowName: string,
+    flowId: string,
+    options: AcquireLockOptions,
+  ): Promise<Lock>;
 }
 
 /**
@@ -244,4 +273,14 @@ export interface FlowConfig {
   hooks?: FlowHooks;
   defaultRetry?: RetryPolicy;
   defaultTimeout?: number;
+  /**
+   * Lock TTL for this flow in ms. Only applies when the storage adapter
+   * implements `acquireLock`. Default: 5 minutes.
+   */
+  lockTtlMs?: number;
+  /**
+   * How long to wait for the lock before giving up. `0` fails immediately if
+   * the lock is held. Default: 30 seconds.
+   */
+  lockWaitMs?: number;
 }

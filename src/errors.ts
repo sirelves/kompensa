@@ -56,6 +56,26 @@ export class FlowAbortedError extends Error {
   }
 }
 
+/**
+ * Thrown when the storage adapter cannot acquire a lock within the configured
+ * wait timeout — typically because another worker is currently executing the
+ * same idempotency key.
+ */
+export class LockAcquisitionError extends Error {
+  constructor(
+    public readonly flowName: string,
+    public readonly flowId: string,
+    reason?: string,
+  ) {
+    super(
+      reason
+        ? `failed to acquire lock for ${flowName}/${flowId}: ${reason}`
+        : `failed to acquire lock for ${flowName}/${flowId}`,
+    );
+    this.name = 'LockAcquisitionError';
+  }
+}
+
 /** Thrown by the executor when a step fails and compensation runs. */
 export class FlowError extends Error {
   constructor(

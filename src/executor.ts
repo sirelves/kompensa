@@ -2,6 +2,7 @@ import type {
   FlowConfig,
   FlowHooks,
   FlowState,
+  Lock,
   Logger,
   RetryPolicy,
   StepContext,
@@ -10,6 +11,9 @@ import type {
   StorageAdapter,
   ExecuteOptions,
 } from './types.js';
+
+const DEFAULT_LOCK_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_LOCK_WAIT_MS = 30 * 1000;
 import { FlowAbortedError, FlowError, serializeError } from './errors.js';
 import { computeDelay, getMaxAttempts, shouldRetryError } from './retry.js';
 import { silentLogger } from './observability/logger.js';
@@ -310,6 +314,85 @@ export async function executeFlow<TInput, TResults extends object>(args: {
 
   const flowId = options.idempotencyKey ?? generateId(flowName);
   const logger = baseLogger.child?.({ flowName, flowId }) ?? baseLogger;
+
+  // Acquire an exclusive lock for the (flowName, flowId) pair when the storage
+  // adapter supports it. This prevents two workers from racing on the same
+  // idempotency key. If the adapter doesn't implement acquireLock we fall
+  // through — safe for single-process deployments like MemoryStorage in tests.
+  const lockTtlMs = config.lockTtlMs ?? DEFAULT_LOCK_TTL_MS;
+  const lockWaitMs = config.lockWaitMs ?? DEFAULT_LOCK_WAIT_MS;
+  let lock: Lock | null = null;
+  if (storage.acquireLock) {
+    lock = await storage.acquireLock(flowName, flowId, {
+      ttlMs: lockTtlMs,
+      timeoutMs: lockWaitMs,
+    });
+  }
+
+  try {
+    return await runExecution<TInput, TResults>({
+      flowName,
+      flowId,
+      steps,
+      input,
+      config,
+      options,
+      storage,
+      logger,
+      hooks,
+      defaultRetry,
+      defaultTimeout,
+      signal,
+      metadata,
+      startTime,
+    });
+  } finally {
+    if (lock) {
+      try {
+        await lock.release();
+      } catch (err) {
+        logger.warn('lock release failed', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+}
+
+interface RunExecutionArgs<TInput> {
+  flowName: string;
+  flowId: string;
+  steps: RegisteredStep[];
+  input: TInput;
+  config: FlowConfig;
+  options: ExecuteOptions;
+  storage: StorageAdapter;
+  logger: Logger;
+  hooks: FlowHooks | undefined;
+  defaultRetry: RetryPolicy | undefined;
+  defaultTimeout: number | undefined;
+  signal: AbortSignal;
+  metadata: Record<string, unknown>;
+  startTime: number;
+}
+
+async function runExecution<TInput, TResults extends object>(
+  args: RunExecutionArgs<TInput>,
+): Promise<TResults> {
+  const {
+    flowName,
+    flowId,
+    steps,
+    input,
+    storage,
+    logger,
+    hooks,
+    defaultRetry,
+    defaultTimeout,
+    signal,
+    metadata,
+    startTime,
+  } = args;
 
   let state = await storage.load(flowName, flowId);
 

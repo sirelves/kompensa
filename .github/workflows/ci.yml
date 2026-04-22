@@ -7,9 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  unit:
+    name: unit (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node: [18, 20, 22]
     steps:
@@ -20,5 +22,43 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
       - run: npm run build
+      - run: npm test
+
+  integration:
+    name: integration (postgres + redis)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: flowguard
+          POSTGRES_PASSWORD: flowguard
+          POSTGRES_DB: flowguard_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U flowguard -d flowguard_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6381:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_POSTGRES_URL: postgres://flowguard:flowguard@localhost:5434/flowguard_test
+      TEST_REDIS_URL: redis://localhost:6381
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration

@@ -1,6 +1,6 @@
 {
   "name": "flowguard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Resilient workflow orchestration for Node, browser and React Native — sagas, idempotency, retry with backoff, compensation, timeout and pluggable storage. Zero runtime dependencies.",
   "keywords": [
     "saga",
@@ -12,10 +12,20 @@
     "compensation",
     "resilience",
     "transactional",
-    "typescript"
+    "typescript",
+    "postgres",
+    "redis"
   ],
   "license": "MIT",
   "author": "elvesdev@proton.me",
+  "homepage": "https://github.com/sirelves/flowguard#readme",
+  "bugs": {
+    "url": "https://github.com/sirelves/flowguard/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sirelves/flowguard.git"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -30,6 +40,16 @@
       "types": "./dist/storage/memory.d.ts",
       "import": "./dist/storage/memory.js",
       "require": "./dist/storage/memory.cjs"
+    },
+    "./storage/postgres": {
+      "types": "./dist/storage/postgres.d.ts",
+      "import": "./dist/storage/postgres.js",
+      "require": "./dist/storage/postgres.cjs"
+    },
+    "./storage/redis": {
+      "types": "./dist/storage/redis.d.ts",
+      "import": "./dist/storage/redis.js",
+      "require": "./dist/storage/redis.cjs"
     },
     "./package.json": "./package.json"
   },
@@ -47,13 +67,33 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:unit": "vitest run",
+    "test:integration": "RUN_INTEGRATION=1 vitest run test/integration/",
+    "test:all": "RUN_INTEGRATION=1 vitest run",
     "test:cov": "vitest run --coverage",
+    "test:services:up": "docker run -d --rm --name flowguard-test-postgres -e POSTGRES_USER=flowguard -e POSTGRES_PASSWORD=flowguard -e POSTGRES_DB=flowguard_test -p 5434:5432 --tmpfs /var/lib/postgresql/data postgres:17-alpine && docker run -d --rm --name flowguard-test-redis -p 6381:6379 --tmpfs /data redis:7-alpine",
+    "test:services:down": "docker rm -f flowguard-test-postgres flowguard-test-redis 2>/dev/null || true",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
+  "peerDependencies": {
+    "ioredis": "^5.0.0",
+    "pg": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.0",
     "@vitest/coverage-v8": "^1.3.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.11.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.3.0"
