@@ -15,19 +15,19 @@ export const silentLogger: Logger = {
 export const consoleLogger: Logger = {
   debug(msg, meta) {
     // eslint-disable-next-line no-console
-    console.debug(`[sagaflow] ${msg}`, meta ?? '');
+    console.debug(`[kompensa] ${msg}`, meta ?? '');
   },
   info(msg, meta) {
     // eslint-disable-next-line no-console
-    console.info(`[sagaflow] ${msg}`, meta ?? '');
+    console.info(`[kompensa] ${msg}`, meta ?? '');
   },
   warn(msg, meta) {
     // eslint-disable-next-line no-console
-    console.warn(`[sagaflow] ${msg}`, meta ?? '');
+    console.warn(`[kompensa] ${msg}`, meta ?? '');
   },
   error(msg, meta) {
     // eslint-disable-next-line no-console
-    console.error(`[sagaflow] ${msg}`, meta ?? '');
+    console.error(`[kompensa] ${msg}`, meta ?? '');
   },
   child(meta) {
     return {

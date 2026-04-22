@@ -6,7 +6,7 @@ For tests of your business logic, skip the database entirely:
 
 ```ts
 import { describe, it, expect, vi } from 'vitest';
-import { createFlow, MemoryStorage, FlowError } from 'sagaflow';
+import { createFlow, MemoryStorage, FlowError } from 'kompensa';
 
 describe('checkout flow', () => {
   it('compensates reserve when charge fails', async () => {
@@ -128,7 +128,7 @@ Set `initialDelayMs: 1` and `jitter: false` to make retry tests deterministic an
 
 ## Fake timers
 
-If you're testing long-running flows, vitest fake timers work with sagaflow's `setTimeout`-based delays:
+If you're testing long-running flows, vitest fake timers work with kompensa's `setTimeout`-based delays:
 
 ```ts
 it('respects exponential backoff', async () => {

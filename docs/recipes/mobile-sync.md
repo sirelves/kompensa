@@ -7,10 +7,10 @@ User creates an order while offline. When connectivity returns (or the app relau
 ```ts
 import * as SQLite from 'expo-sqlite';
 import NetInfo from '@react-native-community/netinfo';
-import { createFlow, TransientError, FlowError } from 'sagaflow';
+import { createFlow, TransientError, FlowError } from 'kompensa';
 import { SqliteStorage } from './SqliteStorage'; // see docs/storage-adapters.md
 
-const db = await SQLite.openDatabaseAsync('sagaflow.db');
+const db = await SQLite.openDatabaseAsync('kompensa.db');
 const storage = new SqliteStorage(db);
 
 const syncOrder = createFlow<{ orderId: string; payload: OrderPayload }>('sync-order', {
@@ -69,7 +69,7 @@ NetInfo.addEventListener(async (state) => {
 
 ## Why this works end-to-end
 
-| Event | What sagaflow does |
+| Event | What kompensa does |
 | --- | --- |
 | Network comes back mid-upload | Retry with exponential backoff, up to 5 attempts |
 | App backgrounded during retry delay | `setTimeout` gets throttled but nothing is lost; next resume continues the retry |

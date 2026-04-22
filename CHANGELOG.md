@@ -1,18 +1,18 @@
 # Changelog
 
-All notable changes to **sagaflow** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
+All notable changes to **kompensa** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
 
 ## [0.2.0] — 2026-04-21
 
 ### Added
 
-- **`PostgresStorage`** adapter (`sagaflow/storage/postgres`)
-  - State stored in `sagaflow_states` (JSONB)
+- **`PostgresStorage`** adapter (`kompensa/storage/postgres`)
+  - State stored in `kompensa_states` (JSONB)
   - Distributed lock via `pg_try_advisory_lock(int, int)` on a dedicated pool connection
   - Lock auto-releases when the holding connection closes — crash-safe
   - `ensureSchema()` helper for zero-config setup
   - Peer dep: `pg` (^8.0.0), optional
-- **`RedisStorage`** adapter (`sagaflow/storage/redis`)
+- **`RedisStorage`** adapter (`kompensa/storage/redis`)
   - State as JSON, atomic `SET NX PX` acquisition
   - Lua-verified token release (safe even after TTL expiry)
   - Atomic `refresh()` via Lua

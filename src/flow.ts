@@ -32,7 +32,7 @@ export class Flow<TInput, TResults extends object = EmptyResults> {
     definition: StepDefinition<TInput, TResults, TResult>,
   ): Flow<TInput, TResults & { [K in TName]: TResult }> {
     if (this._steps.some((s) => s.name === name)) {
-      throw new Error(`sagaflow: duplicate step name "${String(name)}" in flow "${this.name}"`);
+      throw new Error(`kompensa: duplicate step name "${String(name)}" in flow "${this.name}"`);
     }
     this._steps.push({
       name: name,
@@ -53,7 +53,7 @@ export class Flow<TInput, TResults extends object = EmptyResults> {
    */
   async execute(input: TInput, options: ExecuteOptions = {}): Promise<TResults> {
     if (this._steps.length === 0) {
-      throw new Error(`sagaflow: flow "${this.name}" has no steps`);
+      throw new Error(`kompensa: flow "${this.name}" has no steps`);
     }
     return executeFlow<TInput, TResults>({
       flowName: this.name,
@@ -81,7 +81,7 @@ export function createFlow<TInput = unknown>(
   config: FlowConfig = {},
 ): Flow<TInput, EmptyResults> {
   if (!name || typeof name !== 'string') {
-    throw new Error('sagaflow: flow name must be a non-empty string');
+    throw new Error('kompensa: flow name must be a non-empty string');
   }
   return new Flow<TInput, EmptyResults>(name, config);
 }

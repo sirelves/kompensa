@@ -16,7 +16,7 @@ export interface RedisLike {
 
 export interface RedisStorageOptions {
   client: RedisLike;
-  /** Prefix applied to all keys written by this adapter. Default: `sagaflow`. */
+  /** Prefix applied to all keys written by this adapter. Default: `kompensa`. */
   keyPrefix?: string;
   /** Polling interval while waiting for a contested lock, in ms. Default: 50. */
   lockPollMs?: number;
@@ -50,7 +50,7 @@ end
  *
  * @example
  * import Redis from 'ioredis';
- * import { RedisStorage } from 'sagaflow/storage/redis';
+ * import { RedisStorage } from 'kompensa/storage/redis';
  *
  * const storage = new RedisStorage({ client: new Redis(process.env.REDIS_URL) });
  * const flow = createFlow('checkout', { storage }).step(...)
@@ -62,10 +62,10 @@ export class RedisStorage implements StorageAdapter {
 
   constructor(opts: RedisStorageOptions) {
     if (!opts.client) {
-      throw new Error('sagaflow: RedisStorage requires a `client` option');
+      throw new Error('kompensa: RedisStorage requires a `client` option');
     }
     this.client = opts.client;
-    this.keyPrefix = opts.keyPrefix ?? 'sagaflow';
+    this.keyPrefix = opts.keyPrefix ?? 'kompensa';
     this.lockPollMs = opts.lockPollMs ?? 50;
   }
 

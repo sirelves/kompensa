@@ -7,8 +7,8 @@ Your job queue may re-deliver a job (consumer crashed, visibility timeout, broke
 ```ts
 import { Worker, Queue } from 'bullmq';
 import { Pool } from 'pg';
-import { createFlow, FlowError, LockAcquisitionError } from 'sagaflow';
-import { PostgresStorage } from 'sagaflow/storage/postgres';
+import { createFlow, FlowError, LockAcquisitionError } from 'kompensa';
+import { PostgresStorage } from 'kompensa/storage/postgres';
 
 const storage = new PostgresStorage({
   pool: new Pool({ connectionString: process.env.DATABASE_URL }),
@@ -70,10 +70,10 @@ new Worker<{ orderId: string }>(
 
 ## Why this combination shines
 
-Queue retries + sagaflow idempotency work together:
+Queue retries + kompensa idempotency work together:
 
-- **Queue re-delivers** → sagaflow sees the same `idempotencyKey`, short-circuits to the cached result. BullMQ marks the job done.
-- **Queue re-delivers after partial work** → sagaflow resumes from the last completed step. No duplicate payments.
+- **Queue re-delivers** → kompensa sees the same `idempotencyKey`, short-circuits to the cached result. BullMQ marks the job done.
+- **Queue re-delivers after partial work** → kompensa resumes from the last completed step. No duplicate payments.
 - **Queue backpressure throttles concurrency** → distributed lock ensures even under burst load, only one worker processes any given order at a time.
 - **Compensation runs automatically** → if `shipOrder` fails after `charge`, the customer is refunded before the job is marked failed.
 
@@ -90,4 +90,4 @@ new Worker('orders', async (job, { signal }) => {
 });
 ```
 
-Now cancelling the job also triggers sagaflow's compensation — useful when a user cancels the order mid-processing.
+Now cancelling the job also triggers kompensa's compensation — useful when a user cancels the order mid-processing.

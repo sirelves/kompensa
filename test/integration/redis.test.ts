@@ -17,7 +17,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  const keys = await client.keys('sagaflow:*');
+  const keys = await client.keys('kompensa:*');
   if (keys.length > 0) await client.del(...keys);
 });
 

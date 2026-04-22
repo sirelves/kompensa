@@ -1,15 +1,15 @@
 # API reference
 
-Every public export from `sagaflow`. For conceptual docs, see [concepts.md](./concepts.md).
+Every public export from `kompensa`. For conceptual docs, see [concepts.md](./concepts.md).
 
 ## Entry points
 
 | Import path | Purpose |
 | --- | --- |
-| `sagaflow` | Core — `createFlow`, errors, `MemoryStorage` |
-| `sagaflow/storage/memory` | `MemoryStorage` (also re-exported from core) |
-| `sagaflow/storage/postgres` | `PostgresStorage` + `PgPoolLike` type (peer dep: `pg`) |
-| `sagaflow/storage/redis` | `RedisStorage` + `RedisLike` type (peer dep: `ioredis`) |
+| `kompensa` | Core — `createFlow`, errors, `MemoryStorage` |
+| `kompensa/storage/memory` | `MemoryStorage` (also re-exported from core) |
+| `kompensa/storage/postgres` | `PostgresStorage` + `PgPoolLike` type (peer dep: `pg`) |
+| `kompensa/storage/redis` | `RedisStorage` + `RedisLike` type (peer dep: `ioredis`) |
 
 ## `createFlow<TInput>(name, config?): Flow<TInput, {}>`
 
@@ -210,8 +210,8 @@ class MemoryStorage implements StorageAdapter {
 class PostgresStorage implements StorageAdapter {
   constructor(opts: {
     pool: PgPoolLike;        // pg.Pool structural type
-    tableName?: string;      // default 'sagaflow_states'
-    lockNamespace?: string;  // default 'sagaflow'
+    tableName?: string;      // default 'kompensa_states'
+    lockNamespace?: string;  // default 'kompensa'
     lockPollMs?: number;     // default 50
   });
   load, save, delete, acquireLock;
@@ -225,7 +225,7 @@ class PostgresStorage implements StorageAdapter {
 class RedisStorage implements StorageAdapter {
   constructor(opts: {
     client: RedisLike;       // ioredis structural type
-    keyPrefix?: string;      // default 'sagaflow'
+    keyPrefix?: string;      // default 'kompensa'
     lockPollMs?: number;     // default 50
   });
   load, save, delete, acquireLock;
@@ -249,7 +249,7 @@ interface Logger {
 ### Provided loggers
 
 - `silentLogger` — discards all output (default)
-- `consoleLogger` — prints to console with `[sagaflow]` prefix
+- `consoleLogger` — prints to console with `[kompensa]` prefix
 
 ### `FlowHooks`
 

@@ -18,11 +18,11 @@ export interface PgClientLike {
 
 export interface PostgresStorageOptions {
   pool: PgPoolLike;
-  /** Table name for flow state. Default: `sagaflow_states`. */
+  /** Table name for flow state. Default: `kompensa_states`. */
   tableName?: string;
   /**
    * Identifier used to namespace Postgres advisory locks, avoiding collision
-   * with locks used by other subsystems. Default: `sagaflow`.
+   * with locks used by other subsystems. Default: `kompensa`.
    */
   lockNamespace?: string;
   /** Polling interval while waiting for a contested lock, in ms. Default: 50. */
@@ -39,7 +39,7 @@ export interface PostgresStorageOptions {
  *
  * @example
  * import { Pool } from 'pg';
- * import { PostgresStorage } from 'sagaflow/storage/postgres';
+ * import { PostgresStorage } from 'kompensa/storage/postgres';
  *
  * const storage = new PostgresStorage({
  *   pool: new Pool({ connectionString: process.env.DATABASE_URL }),
@@ -56,15 +56,15 @@ export class PostgresStorage implements StorageAdapter {
 
   constructor(opts: PostgresStorageOptions) {
     if (!opts.pool) {
-      throw new Error('sagaflow: PostgresStorage requires a `pool` option');
+      throw new Error('kompensa: PostgresStorage requires a `pool` option');
     }
     this.pool = opts.pool;
-    this.tableName = opts.tableName ?? 'sagaflow_states';
-    this.lockNamespace = opts.lockNamespace ?? 'sagaflow';
+    this.tableName = opts.tableName ?? 'kompensa_states';
+    this.lockNamespace = opts.lockNamespace ?? 'kompensa';
     this.lockPollMs = opts.lockPollMs ?? 50;
 
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(this.tableName)) {
-      throw new Error(`sagaflow: invalid tableName "${this.tableName}"`);
+      throw new Error(`kompensa: invalid tableName "${this.tableName}"`);
     }
   }
 
@@ -172,7 +172,7 @@ export class PostgresStorage implements StorageAdapter {
   /**
    * Create the state table if it doesn't exist. Safe to call repeatedly.
    * Use this once at startup or migrate via your preferred migration tool
-   * using the SQL in `sagaflow/storage/postgres/schema.sql`.
+   * using the SQL in `kompensa/storage/postgres/schema.sql`.
    */
   async ensureSchema(): Promise<void> {
     await this.pool.query(

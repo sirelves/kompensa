@@ -1,23 +1,23 @@
 <div align="center">
 
-# sagaflow
+# kompensa
 
 **Resilient workflow orchestration for Node, browser and React Native.**
 Sagas · idempotency · retry with backoff · compensation · timeouts · pluggable storage.
 Zero runtime dependencies.
 
-[![npm version](https://img.shields.io/npm/v/sagaflow?color=cb3837&logo=npm)](https://www.npmjs.com/package/sagaflow)
-[![npm downloads/month](https://img.shields.io/npm/dm/sagaflow?color=cb3837&logo=npm&label=downloads%2Fmonth)](https://www.npmjs.com/package/sagaflow)
-[![npm downloads/week](https://img.shields.io/npm/dw/sagaflow?color=cb3837&logo=npm&label=downloads%2Fweek)](https://www.npmjs.com/package/sagaflow)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/sagaflow?label=minzipped)](https://bundlephobia.com/package/sagaflow)
-[![types](https://img.shields.io/npm/types/sagaflow)](https://www.npmjs.com/package/sagaflow)
-[![node](https://img.shields.io/node/v/sagaflow)](https://www.npmjs.com/package/sagaflow)
-[![license](https://img.shields.io/npm/l/sagaflow?color=blue)](./LICENSE)
-[![CI](https://github.com/sirelves/sagaflow/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/sagaflow/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/kompensa?color=cb3837&logo=npm)](https://www.npmjs.com/package/kompensa)
+[![npm downloads/month](https://img.shields.io/npm/dm/kompensa?color=cb3837&logo=npm&label=downloads%2Fmonth)](https://www.npmjs.com/package/kompensa)
+[![npm downloads/week](https://img.shields.io/npm/dw/kompensa?color=cb3837&logo=npm&label=downloads%2Fweek)](https://www.npmjs.com/package/kompensa)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/kompensa?label=minzipped)](https://bundlephobia.com/package/kompensa)
+[![types](https://img.shields.io/npm/types/kompensa)](https://www.npmjs.com/package/kompensa)
+[![node](https://img.shields.io/node/v/kompensa)](https://www.npmjs.com/package/kompensa)
+[![license](https://img.shields.io/npm/l/kompensa?color=blue)](./LICENSE)
+[![CI](https://github.com/sirelves/kompensa/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/kompensa/actions/workflows/ci.yml)
 
-[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [📈 Download trends](https://npm-stat.com/charts.html?package=sagaflow) · [📦 npm](https://www.npmjs.com/package/sagaflow) · [🐙 GitHub](https://github.com/sirelves/sagaflow)
+[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [📈 Download trends](https://npm-stat.com/charts.html?package=kompensa) · [📦 npm](https://www.npmjs.com/package/kompensa) · [🐙 GitHub](https://github.com/sirelves/kompensa)
 
-<a href="https://npm-stat.com/charts.html?package=sagaflow">
+<a href="https://npm-stat.com/charts.html?package=kompensa">
   <img src="https://nodei.co/npm-dl.png?height=3&months=3" alt="downloads chart" />
 </a>
 
@@ -28,11 +28,11 @@ Zero runtime dependencies.
 ## 30 seconds
 
 ```bash
-npm install sagaflow
+npm install kompensa
 ```
 
 ```ts
-import { createFlow } from 'sagaflow';
+import { createFlow } from 'kompensa';
 
 const checkout = createFlow<{ orderId: string }>('checkout')
   .step('reserve', {
@@ -65,7 +65,7 @@ Process crashed mid-flow? → **resumes from the last successful step**.
 
 Every non-trivial system hits these four bugs in production. Each team reinvents the wheel — badly:
 
-| Problem                           | Without sagaflow                           | With sagaflow                        |
+| Problem                           | Without kompensa                           | With kompensa                        |
 | --------------------------------- | ------------------------------------------- | ------------------------------------- |
 | **Duplicate charges**             | Client retries, customer billed twice       | `idempotencyKey` → result cached      |
 | **Partial failure leaks**         | Stock locked forever after payment crashed  | Saga auto-compensates on downstream failure |
@@ -102,10 +102,10 @@ Not a framework, not a platform — **a small, typed library** that turns `try/c
 ## Install
 
 ```bash
-npm  install sagaflow
-pnpm add     sagaflow
-yarn add     sagaflow
-bun  add     sagaflow
+npm  install kompensa
+pnpm add     kompensa
+yarn add     kompensa
+bun  add     kompensa
 ```
 
 Requires Node 18+. Works in modern browsers and React Native (Hermes).
@@ -223,7 +223,7 @@ With a SQLite/MMKV `StorageAdapter` the sync survives the app being force-closed
 ```ts
 queue.process(async (job) => {
   return processOrderFlow.execute(job.data, {
-    idempotencyKey: `job-${job.id}`,   // Bull may re-dispatch; sagaflow dedupes
+    idempotencyKey: `job-${job.id}`,   // Bull may re-dispatch; kompensa dedupes
     signal: job.signal,                 // queue cancellation → flow abort
   });
 });
@@ -233,7 +233,7 @@ queue.process(async (job) => {
 
 ## How it compares
 
-| | **sagaflow** | Temporal | AWS Step Functions | Bull / BullMQ | Plain try/catch |
+| | **kompensa** | Temporal | AWS Step Functions | Bull / BullMQ | Plain try/catch |
 | -- | :--: | :--: | :--: | :--: | :--: |
 | In-process orchestration  | ✅ | ⚠️ needs worker | ❌ | ⚠️ | ✅ |
 | Zero deps                 | ✅ | ❌ | ❌ | ❌ | ✅ |
@@ -245,7 +245,7 @@ queue.process(async (job) => {
 | Typed DSL                 | ✅ | ⚠️ | ❌ | ❌ | — |
 | Bundle size               | ~20 KB | 10+ MB | — | ~200 KB | 0 |
 
-**TL;DR:** sagaflow sits between "roll your own" and "adopt a heavyweight orchestrator." It's the right tool when you want structured sagas inside a service — not when you need hour-scale durable workflows across a fleet of workers (use Temporal for that).
+**TL;DR:** kompensa sits between "roll your own" and "adopt a heavyweight orchestrator." It's the right tool when you want structured sagas inside a service — not when you need hour-scale durable workflows across a fleet of workers (use Temporal for that).
 
 ---
 
@@ -256,7 +256,7 @@ The core ships with `MemoryStorage` — fine for tests, single-process services,
 Writing a custom adapter is a 3-method interface:
 
 ```ts
-import type { StorageAdapter, FlowState } from 'sagaflow';
+import type { StorageAdapter, FlowState } from 'kompensa';
 
 class MyStorage implements StorageAdapter {
   async load(flowName: string, flowId: string): Promise<FlowState | null> { ... }
@@ -270,13 +270,13 @@ class MyStorage implements StorageAdapter {
 ```ts
 // Postgres — state in JSONB, lock via pg_advisory_lock
 import { Pool } from 'pg';
-import { PostgresStorage } from 'sagaflow/storage/postgres';
+import { PostgresStorage } from 'kompensa/storage/postgres';
 const storage = new PostgresStorage({ pool: new Pool({ connectionString }) });
 await storage.ensureSchema();
 
 // Redis — state as JSON, lock via SET NX PX with Lua-safe release
 import Redis from 'ioredis';
-import { RedisStorage } from 'sagaflow/storage/redis';
+import { RedisStorage } from 'kompensa/storage/redis';
 const storage = new RedisStorage({ client: new Redis(REDIS_URL) });
 ```
 
@@ -299,7 +299,7 @@ import {
   silentLogger, consoleLogger,
   computeDelay, shouldRetryError,
   isPermanent, isTransient, serializeError,
-} from 'sagaflow';
+} from 'kompensa';
 
 // Types
 import type {
@@ -310,7 +310,7 @@ import type {
   FlowStartEvent, FlowEndEvent,
   StepStartEvent, StepEndEvent, StepRetryEvent,
   CompensateEvent,
-} from 'sagaflow';
+} from 'kompensa';
 ```
 
 Full types exported. Every public function has a TSDoc block.
@@ -323,15 +323,15 @@ Full types exported. Every public function has a TSDoc block.
 - **v0.3** — parallel step groups · OpenTelemetry adapter · `useFlow()` React hook
 - **v0.4** — scheduler integration (cron/delayed retries) · SQLite / AsyncStorage adapter for mobile
 
-See [open issues](https://github.com/sirelves/sagaflow/issues) and the [milestones](https://github.com/sirelves/sagaflow/milestones).
+See [open issues](https://github.com/sirelves/kompensa/issues) and the [milestones](https://github.com/sirelves/kompensa/milestones).
 
 ---
 
 ## Contributing
 
 ```bash
-git clone https://github.com/sirelves/sagaflow.git
-cd sagaflow
+git clone https://github.com/sirelves/kompensa.git
+cd kompensa
 npm install
 npm test            # vitest
 npm run typecheck   # tsc --noEmit

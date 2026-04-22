@@ -1,6 +1,6 @@
 # Storage adapters
 
-Storage is the only required port. It's what makes sagaflow durable, idempotent, and multi-worker-safe.
+Storage is the only required port. It's what makes kompensa durable, idempotent, and multi-worker-safe.
 
 ## Which adapter?
 
@@ -12,14 +12,14 @@ Storage is the only required port. It's what makes sagaflow durable, idempotent,
 | Mobile/RN with durable local queue | Custom adapter over SQLite/MMKV |
 | Edge runtime / serverless | Custom adapter over KV store |
 
-**Rule of thumb:** use the datastore you already operate. sagaflow's state is small (a JSONB row per active flow) — it doesn't need its own infrastructure.
+**Rule of thumb:** use the datastore you already operate. kompensa's state is small (a JSONB row per active flow) — it doesn't need its own infrastructure.
 
 ## `MemoryStorage`
 
 The default. Zero setup, zero deps.
 
 ```ts
-import { createFlow, MemoryStorage } from 'sagaflow';
+import { createFlow, MemoryStorage } from 'kompensa';
 
 const storage = new MemoryStorage();
 const flow = createFlow('x', { storage }).step(/* ... */);
@@ -33,7 +33,7 @@ const flow = createFlow('x', { storage }).step(/* ... */);
 
 ```ts
 import { Pool } from 'pg';
-import { PostgresStorage } from 'sagaflow/storage/postgres';
+import { PostgresStorage } from 'kompensa/storage/postgres';
 
 const storage = new PostgresStorage({
   pool: new Pool({ connectionString: process.env.DATABASE_URL }),
@@ -47,14 +47,14 @@ await storage.ensureSchema();  // one-time table creation
 **Schema:**
 
 ```sql
-CREATE TABLE IF NOT EXISTS sagaflow_states (
+CREATE TABLE IF NOT EXISTS kompensa_states (
   flow_name  TEXT NOT NULL,
   flow_id    TEXT NOT NULL,
   state      JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (flow_name, flow_id)
 );
-CREATE INDEX sagaflow_states_updated_idx ON sagaflow_states (updated_at);
+CREATE INDEX kompensa_states_updated_idx ON kompensa_states (updated_at);
 ```
 
 Call `ensureSchema()` at startup, or generate a migration via your tool of choice using the SQL above.
@@ -68,8 +68,8 @@ Call `ensureSchema()` at startup, or generate a migration via your tool of choic
 ```ts
 new PostgresStorage({
   pool,
-  tableName: 'sagaflow_states',      // default
-  lockNamespace: 'sagaflow',          // default — prevents collision with other advisory locks
+  tableName: 'kompensa_states',      // default
+  lockNamespace: 'kompensa',          // default — prevents collision with other advisory locks
   lockPollMs: 50,                      // polling interval while waiting
 });
 ```
@@ -78,7 +78,7 @@ new PostgresStorage({
 
 ```ts
 import Redis from 'ioredis';
-import { RedisStorage } from 'sagaflow/storage/redis';
+import { RedisStorage } from 'kompensa/storage/redis';
 
 const storage = new RedisStorage({
   client: new Redis(process.env.REDIS_URL),
@@ -89,31 +89,31 @@ const storage = new RedisStorage({
 
 **Keys written:**
 
-- `sagaflow:state:{flowName}:{flowId}` — JSON-serialized state
-- `sagaflow:lock:{flowName}:{flowId}` — random token, with `PX` TTL, `NX` guarded
+- `kompensa:state:{flowName}:{flowId}` — JSON-serialized state
+- `kompensa:lock:{flowName}:{flowId}` — random token, with `PX` TTL, `NX` guarded
 
 **Locking:** Redlock-style single-node. `SET NX PX` for acquisition, Lua script for token-safe release (so a process whose TTL expired cannot delete another holder's lock).
 
-**Trade-off vs Postgres:** Redis has native lock TTL (enforced server-side), Postgres does not. Redis is ~10x faster for the lock itself. Postgres gives you one fewer service to run if you already have a database. Both are production-safe for sagaflow's use case.
+**Trade-off vs Postgres:** Redis has native lock TTL (enforced server-side), Postgres does not. Redis is ~10x faster for the lock itself. Postgres gives you one fewer service to run if you already have a database. Both are production-safe for kompensa's use case.
 
 **Options:**
 
 ```ts
 new RedisStorage({
   client,
-  keyPrefix: 'sagaflow',   // default
+  keyPrefix: 'kompensa',   // default
   lockPollMs: 50,           // polling interval while waiting
 });
 ```
 
-**Multi-node Redlock:** not implemented. sagaflow's single-node Redlock is correct for a single Redis master. For a Redis cluster with multiple masters, use Postgres or wait for `sagaflow-redlock` (planned v0.3).
+**Multi-node Redlock:** not implemented. kompensa's single-node Redlock is correct for a single Redis master. For a Redis cluster with multiple masters, use Postgres or wait for `kompensa-redlock` (planned v0.3).
 
 ## Writing your own adapter
 
 The interface is three required methods plus an optional lock:
 
 ```ts
-import type { StorageAdapter, FlowState, AcquireLockOptions, Lock } from 'sagaflow';
+import type { StorageAdapter, FlowState, AcquireLockOptions, Lock } from 'kompensa';
 
 export class MyStorage implements StorageAdapter {
   async load(flowName: string, flowId: string): Promise<FlowState | null> {
@@ -144,12 +144,12 @@ export class MyStorage implements StorageAdapter {
 ### Minimal SQLite adapter for mobile
 
 ```ts
-import type { StorageAdapter, FlowState } from 'sagaflow';
+import type { StorageAdapter, FlowState } from 'kompensa';
 
 export class SqliteStorage implements StorageAdapter {
   constructor(private readonly db: SQLiteDatabase) {
     db.execAsync(`
-      CREATE TABLE IF NOT EXISTS sagaflow_states (
+      CREATE TABLE IF NOT EXISTS kompensa_states (
         flow_name TEXT NOT NULL,
         flow_id   TEXT NOT NULL,
         state     TEXT NOT NULL,
@@ -160,7 +160,7 @@ export class SqliteStorage implements StorageAdapter {
 
   async load(flowName: string, flowId: string): Promise<FlowState | null> {
     const row = await this.db.getFirstAsync<{ state: string }>(
-      'SELECT state FROM sagaflow_states WHERE flow_name = ? AND flow_id = ?',
+      'SELECT state FROM kompensa_states WHERE flow_name = ? AND flow_id = ?',
       [flowName, flowId],
     );
     return row ? JSON.parse(row.state) : null;
@@ -168,7 +168,7 @@ export class SqliteStorage implements StorageAdapter {
 
   async save(state: FlowState): Promise<void> {
     await this.db.runAsync(
-      `INSERT INTO sagaflow_states (flow_name, flow_id, state)
+      `INSERT INTO kompensa_states (flow_name, flow_id, state)
        VALUES (?, ?, ?)
        ON CONFLICT (flow_name, flow_id) DO UPDATE SET state = excluded.state`,
       [state.flowName, state.flowId, JSON.stringify(state)],
@@ -177,7 +177,7 @@ export class SqliteStorage implements StorageAdapter {
 
   async delete(flowName: string, flowId: string): Promise<void> {
     await this.db.runAsync(
-      'DELETE FROM sagaflow_states WHERE flow_name = ? AND flow_id = ?',
+      'DELETE FROM kompensa_states WHERE flow_name = ? AND flow_id = ?',
       [flowName, flowId],
     );
   }
@@ -195,6 +195,6 @@ export class SqliteStorage implements StorageAdapter {
 
 ### Guarantees an adapter MAY skip
 
-- **Global ordering** — sagaflow doesn't need cross-key consistency.
+- **Global ordering** — kompensa doesn't need cross-key consistency.
 - **Secondary indexes** — the state is always looked up by `(flowName, flowId)`.
-- **Eviction / cleanup** — sagaflow never deletes its own state unless you call `storage.delete()`. Add a janitor job if your long-term state growth matters.
+- **Eviction / cleanup** — kompensa never deletes its own state unless you call `storage.delete()`. Add a janitor job if your long-term state growth matters.

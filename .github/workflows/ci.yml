@@ -32,13 +32,13 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: sagaflow
-          POSTGRES_PASSWORD: sagaflow
-          POSTGRES_DB: sagaflow_test
+          POSTGRES_USER: kompensa
+          POSTGRES_PASSWORD: kompensa
+          POSTGRES_DB: kompensa_test
         ports:
           - 5434:5432
         options: >-
-          --health-cmd "pg_isready -U sagaflow -d sagaflow_test"
+          --health-cmd "pg_isready -U kompensa -d kompensa_test"
           --health-interval 1s
           --health-timeout 3s
           --health-retries 20
@@ -52,7 +52,7 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     env:
-      TEST_POSTGRES_URL: postgres://sagaflow:sagaflow@localhost:5434/sagaflow_test
+      TEST_POSTGRES_URL: postgres://kompensa:kompensa@localhost:5434/kompensa_test
       TEST_REDIS_URL: redis://localhost:6381
     steps:
       - uses: actions/checkout@v4

@@ -5,7 +5,7 @@ import { PostgresStorage } from '../../src/storage/postgres.js';
 
 const POSTGRES_URL =
   process.env.TEST_POSTGRES_URL ??
-  'postgres://sagaflow:sagaflow@localhost:5434/sagaflow_test';
+  'postgres://kompensa:kompensa@localhost:5434/kompensa_test';
 
 // Generous pool — each concurrent execute() holds one client for the lock
 // plus transient clients for state queries. Set max well above the concurrency
@@ -33,7 +33,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await pool.query('TRUNCATE sagaflow_states');
+  await pool.query('TRUNCATE kompensa_states');
 });
 
 describe('PostgresStorage — state persistence', () => {
@@ -213,7 +213,7 @@ describe('PostgresStorage — distributed lock', () => {
 
     await crasher.query(
       'SELECT pg_advisory_lock(hashtext($1), hashtext($2))',
-      ['sagaflow', 'pg-crash:id'],
+      ['kompensa', 'pg-crash:id'],
     );
 
     // Confirm the lock is held — storage must fail fast to acquire.
