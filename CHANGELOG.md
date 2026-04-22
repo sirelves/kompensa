@@ -2,6 +2,19 @@
 
 All notable changes to **kompensa** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
 
+## [0.2.1] — 2026-04-21
+
+### Docs / discoverability
+
+No runtime changes — this is a **metadata and SEO release** that re-indexes the package in the npm registry and in search engines.
+
+- **README** rewritten with search-intent headings (`What is kompensa?`, `When should I use kompensa?`, `How does kompensa compare to Temporal?`, quick-start by use case), a compatibility matrix (Node / Bun / Deno / React Native / frameworks / storage), and an FAQ answering the top developer queries (duplicate charges, Saga pattern, BullMQ, Next.js, React Native offline, crash recovery, exponential backoff, testing).
+- **package.json** keywords expanded from 12 to 31 high-intent terms (`saga-pattern`, `distributed-transactions`, `fault-tolerant`, `crash-recovery`, `temporal-alternative`, `bullmq`, `react-native`, `offline-first`, `state-machine`, `process-manager`, `microservices`, etc.).
+- **package.json** description sharpened (capability-first: "Saga pattern workflow library for Node.js, browser and React Native…").
+- **GitHub repo** metadata: sharpened one-line description; `homepage` set to the npm page; 20 topic tags for discoverability (`saga`, `saga-pattern`, `workflow`, `workflow-engine`, `idempotency`, `retry`, `compensation`, `distributed-transactions`, `resilience`, `fault-tolerant`, `typescript`, `nodejs`, `react-native`, `postgres`, `redis`, `bullmq`, `temporal-alternative`, `microservices`, `crash-recovery`, `orchestration`).
+- **Social preview image** (`.github/assets/social-preview.png`, 1280×640) for GitHub / Twitter / LinkedIn / Discord embeds. Upload via GitHub repo Settings → Social preview.
+- **`funding` field** added (`github.com/sponsors/sirelves`).
+
 ## [0.2.0] — 2026-04-21
 
 ### Added

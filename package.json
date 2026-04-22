@@ -1,23 +1,50 @@
 {
   "name": "kompensa",
-  "version": "0.2.0",
-  "description": "Resilient workflow orchestration for Node, browser and React Native — sagas, idempotency, retry with backoff, compensation, timeout and pluggable storage. Zero runtime dependencies.",
+  "version": "0.2.1",
+  "description": "Saga pattern workflow library for Node.js, browser and React Native. Typed builder with idempotency keys, retry with exponential backoff, compensation on failure, distributed locking (Postgres/Redis) and crash recovery. Zero runtime dependencies.",
   "keywords": [
     "saga",
+    "saga-pattern",
     "workflow",
+    "workflow-engine",
     "orchestration",
+    "orchestrator",
     "idempotency",
+    "idempotent",
     "retry",
+    "exponential-backoff",
     "backoff",
     "compensation",
+    "distributed-transactions",
     "resilience",
-    "transactional",
+    "resilient",
+    "fault-tolerant",
+    "reliability",
+    "crash-recovery",
+    "durable",
+    "state-machine",
+    "process-manager",
+    "microservices",
     "typescript",
+    "nodejs",
+    "react-native",
+    "offline-first",
     "postgres",
-    "redis"
+    "redis",
+    "temporal-alternative",
+    "bullmq",
+    "webhooks"
   ],
   "license": "MIT",
-  "author": "elvesdev@proton.me",
+  "author": {
+    "name": "sirelves",
+    "email": "elvesdev@proton.me",
+    "url": "https://github.com/sirelves"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/sirelves"
+  },
   "homepage": "https://github.com/sirelves/kompensa#readme",
   "bugs": {
     "url": "https://github.com/sirelves/kompensa/issues"

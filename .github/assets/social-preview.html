@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>kompensa social preview</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 1280px; height: 640px; overflow: hidden; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background:
+        radial-gradient(1400px 500px at 85% 120%, rgba(120, 180, 255, .18), transparent 70%),
+        radial-gradient(900px 500px at 15% -20%, rgba(200, 130, 255, .14), transparent 70%),
+        linear-gradient(180deg, #0c0f17 0%, #0a0d14 100%);
+      color: #e6edf3;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+    }
+
+    /* subtle grid background */
+    body::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at 30% 40%, black 40%, transparent 80%);
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      padding: 72px 88px;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .left .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #b8c5d1;
+      letter-spacing: .02em;
+      margin-bottom: 28px;
+    }
+    .badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #3fb950;
+      box-shadow: 0 0 12px #3fb95088;
+    }
+
+    .logo {
+      font-size: 108px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.9;
+      background: linear-gradient(135deg, #fff 0%, #fff 40%, #9db5ff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 24px;
+    }
+
+    .tagline {
+      font-size: 26px;
+      font-weight: 500;
+      line-height: 1.35;
+      color: #d1d9e2;
+      margin-bottom: 28px;
+      max-width: 560px;
+    }
+    .tagline b {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      max-width: 560px;
+    }
+    .chip {
+      padding: 7px 13px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #c7d2dd;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .footer {
+      position: absolute;
+      left: 88px; bottom: 56px;
+      display: flex; align-items: center; gap: 24px;
+      font-size: 16px;
+      color: #8b98a5;
+      font-weight: 500;
+    }
+    .footer .sep {
+      width: 4px; height: 4px; border-radius: 50%; background: #566373;
+    }
+    .footer b {
+      color: #c7d2dd;
+      font-weight: 600;
+    }
+
+    /* Right side — code block */
+    .right {
+      position: relative;
+    }
+
+    .code {
+      background: rgba(13, 17, 23, .85);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      padding: 24px 28px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 17px;
+      line-height: 1.65;
+      backdrop-filter: blur(10px);
+      box-shadow:
+        0 24px 60px rgba(0,0,0,.5),
+        0 1px 0 rgba(255,255,255,.05) inset;
+      color: #c7d2dd;
+    }
+
+    .code .window {
+      display: flex; gap: 6px; margin-bottom: 18px;
+    }
+    .code .window span {
+      width: 12px; height: 12px; border-radius: 50%;
+    }
+    .code .window span:nth-child(1) { background: #ff5f57; }
+    .code .window span:nth-child(2) { background: #febc2e; }
+    .code .window span:nth-child(3) { background: #28c840; }
+
+    .kw  { color: #ff7b72; }
+    .fn  { color: #d2a8ff; }
+    .str { color: #a5d6ff; }
+    .com { color: #8b98a5; }
+    .prop{ color: #79c0ff; }
+    .num { color: #79c0ff; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="left">
+      <div class="badge">
+        <span class="dot"></span>
+        <span>Saga pattern · idempotency · retry · compensation</span>
+      </div>
+
+      <div class="logo">kompensa</div>
+
+      <div class="tagline">
+        Resilient <b>workflow orchestration</b> for <b>Node.js</b>, browser &amp; <b>React&nbsp;Native</b>.
+        <br />Zero runtime deps.
+      </div>
+
+      <div class="chips">
+        <span class="chip">TypeScript</span>
+        <span class="chip">Node 18+</span>
+        <span class="chip">PostgreSQL</span>
+        <span class="chip">Redis</span>
+        <span class="chip">React Native</span>
+        <span class="chip">ESM + CJS</span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="code">
+        <div class="window"><span></span><span></span><span></span></div>
+<span class="kw">import</span> { <span class="fn">createFlow</span> } <span class="kw">from</span> <span class="str">'kompensa'</span>;<br />
+<br />
+<span class="kw">const</span> <span class="fn">checkout</span> = <span class="fn">createFlow</span>(<span class="str">'checkout'</span>)<br />
+&nbsp;&nbsp;.<span class="fn">step</span>(<span class="str">'reserve'</span>, { <span class="prop">run</span>, <span class="prop">compensate</span> })<br />
+&nbsp;&nbsp;.<span class="fn">step</span>(<span class="str">'charge'</span>, {<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">run</span>, <span class="prop">compensate</span>,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">retry</span>: { <span class="prop">maxAttempts</span>: <span class="num">3</span> },<br />
+&nbsp;&nbsp;})<br />
+&nbsp;&nbsp;.<span class="fn">step</span>(<span class="str">'invoice'</span>, { <span class="prop">run</span> });<br />
+<br />
+<span class="com">// idempotent · compensating · crash-safe</span><br />
+<span class="kw">await</span> checkout.<span class="fn">execute</span>(input, {<br />
+&nbsp;&nbsp;<span class="prop">idempotencyKey</span>: <span class="str">'order-42'</span>,<br />
+});
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>npm install <b>kompensa</b></span>
+      <span class="sep"></span>
+      <span><b>github.com/sirelves/kompensa</b></span>
+    </div>
+  </div>
+</body>
+</html>
