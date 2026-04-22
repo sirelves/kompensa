@@ -17,7 +17,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  const keys = await client.keys('flowguard:*');
+  const keys = await client.keys('sagaflow:*');
   if (keys.length > 0) await client.del(...keys);
 });
 

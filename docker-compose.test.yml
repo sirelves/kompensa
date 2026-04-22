@@ -1,15 +1,15 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: flowguard-test-postgres
+    container_name: sagaflow-test-postgres
     environment:
-      POSTGRES_USER: flowguard
-      POSTGRES_PASSWORD: flowguard
-      POSTGRES_DB: flowguard_test
+      POSTGRES_USER: sagaflow
+      POSTGRES_PASSWORD: sagaflow
+      POSTGRES_DB: sagaflow_test
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flowguard -d flowguard_test"]
+      test: ["CMD-SHELL", "pg_isready -U sagaflow -d sagaflow_test"]
       interval: 1s
       timeout: 3s
       retries: 20
@@ -18,7 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: flowguard-test-redis
+    container_name: sagaflow-test-redis
     ports:
       - "6381:6379"
     healthcheck:

@@ -1,5 +1,5 @@
 {
-  "name": "flowguard",
+  "name": "sagaflow",
   "version": "0.2.0",
   "description": "Resilient workflow orchestration for Node, browser and React Native — sagas, idempotency, retry with backoff, compensation, timeout and pluggable storage. Zero runtime dependencies.",
   "keywords": [
@@ -18,13 +18,13 @@
   ],
   "license": "MIT",
   "author": "elvesdev@proton.me",
-  "homepage": "https://github.com/sirelves/flowguard#readme",
+  "homepage": "https://github.com/sirelves/sagaflow#readme",
   "bugs": {
-    "url": "https://github.com/sirelves/flowguard/issues"
+    "url": "https://github.com/sirelves/sagaflow/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sirelves/flowguard.git"
+    "url": "git+https://github.com/sirelves/sagaflow.git"
   },
   "type": "module",
   "main": "./dist/index.cjs",
@@ -71,8 +71,8 @@
     "test:integration": "RUN_INTEGRATION=1 vitest run test/integration/",
     "test:all": "RUN_INTEGRATION=1 vitest run",
     "test:cov": "vitest run --coverage",
-    "test:services:up": "docker run -d --rm --name flowguard-test-postgres -e POSTGRES_USER=flowguard -e POSTGRES_PASSWORD=flowguard -e POSTGRES_DB=flowguard_test -p 5434:5432 --tmpfs /var/lib/postgresql/data postgres:17-alpine && docker run -d --rm --name flowguard-test-redis -p 6381:6379 --tmpfs /data redis:7-alpine",
-    "test:services:down": "docker rm -f flowguard-test-postgres flowguard-test-redis 2>/dev/null || true",
+    "test:services:up": "docker run -d --rm --name sagaflow-test-postgres -e POSTGRES_USER=sagaflow -e POSTGRES_PASSWORD=sagaflow -e POSTGRES_DB=sagaflow_test -p 5434:5432 --tmpfs /var/lib/postgresql/data postgres:17-alpine && docker run -d --rm --name sagaflow-test-redis -p 6381:6379 --tmpfs /data redis:7-alpine",
+    "test:services:down": "docker rm -f sagaflow-test-postgres sagaflow-test-redis 2>/dev/null || true",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },

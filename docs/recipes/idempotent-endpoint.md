@@ -7,8 +7,8 @@ Your POST endpoint touches several services. The client can retry. You must not 
 ```ts
 import express from 'express';
 import { Pool } from 'pg';
-import { createFlow, FlowError, LockAcquisitionError } from 'flowguard';
-import { PostgresStorage } from 'flowguard/storage/postgres';
+import { createFlow, FlowError, LockAcquisitionError } from 'sagaflow';
+import { PostgresStorage } from 'sagaflow/storage/postgres';
 
 const storage = new PostgresStorage({
   pool: new Pool({ connectionString: process.env.DATABASE_URL }),
@@ -69,7 +69,7 @@ app.post('/checkout', async (req, res) => {
 ## What you get
 
 - **First request:** all three steps run, response returned.
-- **Retry with same header:** flowguard short-circuits, returns the identical response body — no side effects.
+- **Retry with same header:** sagaflow short-circuits, returns the identical response body — no side effects.
 - **Retry while first call is still running:** 409, client backs off and retries again (with a successful short-circuit).
 - **Payment failure:** stock is released automatically. Client sees 422 with the failed step.
 - **Worker crashes mid-flow:** next request with the same key resumes from the last completed step — no double-charge.

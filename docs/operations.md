@@ -2,7 +2,7 @@
 
 ## Production checklist
 
-Before shipping flowguard to production, verify each of these:
+Before shipping sagaflow to production, verify each of these:
 
 ### Storage
 
@@ -82,10 +82,10 @@ Two workers are racing on the same key. Either:
 
 ### State table growing unbounded
 
-flowguard never deletes its own state unless you call `storage.delete()`. Add a janitor job:
+sagaflow never deletes its own state unless you call `storage.delete()`. Add a janitor job:
 
 ```sql
-DELETE FROM flowguard_states
+DELETE FROM sagaflow_states
 WHERE status = 'success'
   AND updated_at < NOW() - INTERVAL '30 days';
 ```
@@ -120,4 +120,4 @@ To force a re-run, delete the state row (or call `storage.delete(flowName, flowI
 
 ## Upgrading
 
-flowguard follows semver once it hits v1. Pre-1.0, minor bumps may include breaking API changes — pin exact versions until you've validated. Check [CHANGELOG.md](../CHANGELOG.md) before upgrading.
+sagaflow follows semver once it hits v1. Pre-1.0, minor bumps may include breaking API changes — pin exact versions until you've validated. Check [CHANGELOG.md](../CHANGELOG.md) before upgrading.

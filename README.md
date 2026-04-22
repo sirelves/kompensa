@@ -1,23 +1,23 @@
 <div align="center">
 
-# flowguard
+# sagaflow
 
 **Resilient workflow orchestration for Node, browser and React Native.**
 Sagas · idempotency · retry with backoff · compensation · timeouts · pluggable storage.
 Zero runtime dependencies.
 
-[![npm version](https://img.shields.io/npm/v/flowguard?color=cb3837&logo=npm)](https://www.npmjs.com/package/flowguard)
-[![npm downloads/month](https://img.shields.io/npm/dm/flowguard?color=cb3837&logo=npm&label=downloads%2Fmonth)](https://www.npmjs.com/package/flowguard)
-[![npm downloads/week](https://img.shields.io/npm/dw/flowguard?color=cb3837&logo=npm&label=downloads%2Fweek)](https://www.npmjs.com/package/flowguard)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/flowguard?label=minzipped)](https://bundlephobia.com/package/flowguard)
-[![types](https://img.shields.io/npm/types/flowguard)](https://www.npmjs.com/package/flowguard)
-[![node](https://img.shields.io/node/v/flowguard)](https://www.npmjs.com/package/flowguard)
-[![license](https://img.shields.io/npm/l/flowguard?color=blue)](./LICENSE)
-[![CI](https://github.com/sirelves/flowguard/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/flowguard/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/sagaflow?color=cb3837&logo=npm)](https://www.npmjs.com/package/sagaflow)
+[![npm downloads/month](https://img.shields.io/npm/dm/sagaflow?color=cb3837&logo=npm&label=downloads%2Fmonth)](https://www.npmjs.com/package/sagaflow)
+[![npm downloads/week](https://img.shields.io/npm/dw/sagaflow?color=cb3837&logo=npm&label=downloads%2Fweek)](https://www.npmjs.com/package/sagaflow)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/sagaflow?label=minzipped)](https://bundlephobia.com/package/sagaflow)
+[![types](https://img.shields.io/npm/types/sagaflow)](https://www.npmjs.com/package/sagaflow)
+[![node](https://img.shields.io/node/v/sagaflow)](https://www.npmjs.com/package/sagaflow)
+[![license](https://img.shields.io/npm/l/sagaflow?color=blue)](./LICENSE)
+[![CI](https://github.com/sirelves/sagaflow/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/sagaflow/actions/workflows/ci.yml)
 
-[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [📈 Download trends](https://npm-stat.com/charts.html?package=flowguard) · [📦 npm](https://www.npmjs.com/package/flowguard) · [🐙 GitHub](https://github.com/sirelves/flowguard)
+[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [📈 Download trends](https://npm-stat.com/charts.html?package=sagaflow) · [📦 npm](https://www.npmjs.com/package/sagaflow) · [🐙 GitHub](https://github.com/sirelves/sagaflow)
 
-<a href="https://npm-stat.com/charts.html?package=flowguard">
+<a href="https://npm-stat.com/charts.html?package=sagaflow">
   <img src="https://nodei.co/npm-dl.png?height=3&months=3" alt="downloads chart" />
 </a>
 
@@ -28,11 +28,11 @@ Zero runtime dependencies.
 ## 30 seconds
 
 ```bash
-npm install flowguard
+npm install sagaflow
 ```
 
 ```ts
-import { createFlow } from 'flowguard';
+import { createFlow } from 'sagaflow';
 
 const checkout = createFlow<{ orderId: string }>('checkout')
   .step('reserve', {
@@ -65,7 +65,7 @@ Process crashed mid-flow? → **resumes from the last successful step**.
 
 Every non-trivial system hits these four bugs in production. Each team reinvents the wheel — badly:
 
-| Problem                           | Without flowguard                           | With flowguard                        |
+| Problem                           | Without sagaflow                           | With sagaflow                        |
 | --------------------------------- | ------------------------------------------- | ------------------------------------- |
 | **Duplicate charges**             | Client retries, customer billed twice       | `idempotencyKey` → result cached      |
 | **Partial failure leaks**         | Stock locked forever after payment crashed  | Saga auto-compensates on downstream failure |
@@ -102,10 +102,10 @@ Not a framework, not a platform — **a small, typed library** that turns `try/c
 ## Install
 
 ```bash
-npm  install flowguard
-pnpm add     flowguard
-yarn add     flowguard
-bun  add     flowguard
+npm  install sagaflow
+pnpm add     sagaflow
+yarn add     sagaflow
+bun  add     sagaflow
 ```
 
 Requires Node 18+. Works in modern browsers and React Native (Hermes).
@@ -223,7 +223,7 @@ With a SQLite/MMKV `StorageAdapter` the sync survives the app being force-closed
 ```ts
 queue.process(async (job) => {
   return processOrderFlow.execute(job.data, {
-    idempotencyKey: `job-${job.id}`,   // Bull may re-dispatch; flowguard dedupes
+    idempotencyKey: `job-${job.id}`,   // Bull may re-dispatch; sagaflow dedupes
     signal: job.signal,                 // queue cancellation → flow abort
   });
 });
@@ -233,7 +233,7 @@ queue.process(async (job) => {
 
 ## How it compares
 
-| | **flowguard** | Temporal | AWS Step Functions | Bull / BullMQ | Plain try/catch |
+| | **sagaflow** | Temporal | AWS Step Functions | Bull / BullMQ | Plain try/catch |
 | -- | :--: | :--: | :--: | :--: | :--: |
 | In-process orchestration  | ✅ | ⚠️ needs worker | ❌ | ⚠️ | ✅ |
 | Zero deps                 | ✅ | ❌ | ❌ | ❌ | ✅ |
@@ -245,7 +245,7 @@ queue.process(async (job) => {
 | Typed DSL                 | ✅ | ⚠️ | ❌ | ❌ | — |
 | Bundle size               | ~20 KB | 10+ MB | — | ~200 KB | 0 |
 
-**TL;DR:** flowguard sits between "roll your own" and "adopt a heavyweight orchestrator." It's the right tool when you want structured sagas inside a service — not when you need hour-scale durable workflows across a fleet of workers (use Temporal for that).
+**TL;DR:** sagaflow sits between "roll your own" and "adopt a heavyweight orchestrator." It's the right tool when you want structured sagas inside a service — not when you need hour-scale durable workflows across a fleet of workers (use Temporal for that).
 
 ---
 
@@ -256,7 +256,7 @@ The core ships with `MemoryStorage` — fine for tests, single-process services,
 Writing a custom adapter is a 3-method interface:
 
 ```ts
-import type { StorageAdapter, FlowState } from 'flowguard';
+import type { StorageAdapter, FlowState } from 'sagaflow';
 
 class MyStorage implements StorageAdapter {
   async load(flowName: string, flowId: string): Promise<FlowState | null> { ... }
@@ -270,13 +270,13 @@ class MyStorage implements StorageAdapter {
 ```ts
 // Postgres — state in JSONB, lock via pg_advisory_lock
 import { Pool } from 'pg';
-import { PostgresStorage } from 'flowguard/storage/postgres';
+import { PostgresStorage } from 'sagaflow/storage/postgres';
 const storage = new PostgresStorage({ pool: new Pool({ connectionString }) });
 await storage.ensureSchema();
 
 // Redis — state as JSON, lock via SET NX PX with Lua-safe release
 import Redis from 'ioredis';
-import { RedisStorage } from 'flowguard/storage/redis';
+import { RedisStorage } from 'sagaflow/storage/redis';
 const storage = new RedisStorage({ client: new Redis(REDIS_URL) });
 ```
 
@@ -299,7 +299,7 @@ import {
   silentLogger, consoleLogger,
   computeDelay, shouldRetryError,
   isPermanent, isTransient, serializeError,
-} from 'flowguard';
+} from 'sagaflow';
 
 // Types
 import type {
@@ -310,7 +310,7 @@ import type {
   FlowStartEvent, FlowEndEvent,
   StepStartEvent, StepEndEvent, StepRetryEvent,
   CompensateEvent,
-} from 'flowguard';
+} from 'sagaflow';
 ```
 
 Full types exported. Every public function has a TSDoc block.
@@ -323,15 +323,15 @@ Full types exported. Every public function has a TSDoc block.
 - **v0.3** — parallel step groups · OpenTelemetry adapter · `useFlow()` React hook
 - **v0.4** — scheduler integration (cron/delayed retries) · SQLite / AsyncStorage adapter for mobile
 
-See [open issues](https://github.com/sirelves/flowguard/issues) and the [milestones](https://github.com/sirelves/flowguard/milestones).
+See [open issues](https://github.com/sirelves/sagaflow/issues) and the [milestones](https://github.com/sirelves/sagaflow/milestones).
 
 ---
 
 ## Contributing
 
 ```bash
-git clone https://github.com/sirelves/flowguard.git
-cd flowguard
+git clone https://github.com/sirelves/sagaflow.git
+cd sagaflow
 npm install
 npm test            # vitest
 npm run typecheck   # tsc --noEmit

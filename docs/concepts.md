@@ -2,7 +2,7 @@
 
 ## The execution model
 
-A flow is a typed, ordered list of steps. When you `execute(input)`, flowguard:
+A flow is a typed, ordered list of steps. When you `execute(input)`, sagaflow:
 
 1. **Acquires a distributed lock** on `(flowName, idempotencyKey)` — other workers attempting the same key block or fail fast.
 2. **Loads any prior state** from the storage adapter.
@@ -52,7 +52,7 @@ The whole lifecycle is a state machine. Every transition is saved to storage, so
 
 `idempotencyKey` is the primary key of the execution. It identifies the work, not the input.
 
-| Scenario | What flowguard does |
+| Scenario | What sagaflow does |
 | --- | --- |
 | Key never seen | Runs normally |
 | Key succeeded previously | Returns cached `result` — skips every step |
@@ -63,14 +63,14 @@ The whole lifecycle is a state machine. Every transition is saved to storage, so
 
 - The key must be stable for equivalent work. A good key includes the business identifier (`order-123`, `payment-abc`). Never include a timestamp or UUID per call.
 - The key is scoped to the flow name, so `order-123` in flow `checkout` and `order-123` in flow `refund` are independent.
-- If you don't pass a key, flowguard generates one — but you lose idempotency across retries from the caller.
+- If you don't pass a key, sagaflow generates one — but you lose idempotency across retries from the caller.
 
 ## Compensation (Saga pattern)
 
 Each step may declare a `compensate` function — the semantic inverse of `run`. When a later step fails:
 
 1. The failing step's state becomes `failed`.
-2. flowguard walks backwards through the completed steps.
+2. sagaflow walks backwards through the completed steps.
 3. For each step with `compensate`, it calls it with the step's result.
 4. The flow status becomes `compensated`.
 5. A `FlowError` is thrown containing the original failure and any compensation errors.
@@ -98,7 +98,7 @@ try {
 }
 ```
 
-**Compensations must be idempotent.** flowguard persists compensation status so crash-during-compensate can be resumed, but your logic should be safe to re-run (e.g., "refund if charge exists" rather than "refund blindly").
+**Compensations must be idempotent.** sagaflow persists compensation status so crash-during-compensate can be resumed, but your logic should be safe to re-run (e.g., "refund if charge exists" rather than "refund blindly").
 
 ## Retry
 

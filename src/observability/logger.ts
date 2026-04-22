@@ -15,19 +15,19 @@ export const silentLogger: Logger = {
 export const consoleLogger: Logger = {
   debug(msg, meta) {
     // eslint-disable-next-line no-console
-    console.debug(`[flowguard] ${msg}`, meta ?? '');
+    console.debug(`[sagaflow] ${msg}`, meta ?? '');
   },
   info(msg, meta) {
     // eslint-disable-next-line no-console
-    console.info(`[flowguard] ${msg}`, meta ?? '');
+    console.info(`[sagaflow] ${msg}`, meta ?? '');
   },
   warn(msg, meta) {
     // eslint-disable-next-line no-console
-    console.warn(`[flowguard] ${msg}`, meta ?? '');
+    console.warn(`[sagaflow] ${msg}`, meta ?? '');
   },
   error(msg, meta) {
     // eslint-disable-next-line no-console
-    console.error(`[flowguard] ${msg}`, meta ?? '');
+    console.error(`[sagaflow] ${msg}`, meta ?? '');
   },
   child(meta) {
     return {

@@ -1,4 +1,4 @@
-# flowguard docs
+# sagaflow docs
 
 - **[Getting started](./getting-started.md)** — install, first flow, execute
 - **[Concepts](./concepts.md)** — steps, idempotency, retry, compensation, state machine

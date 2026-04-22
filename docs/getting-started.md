@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-npm install flowguard
+npm install sagaflow
 ```
 
 Requires Node 18+. Works in modern browsers and React Native (Hermes).
@@ -11,16 +11,16 @@ Requires Node 18+. Works in modern browsers and React Native (Hermes).
 For durable state across process restarts you'll also want one of the adapters:
 
 ```bash
-npm install flowguard pg          # Postgres (recommended for most backends)
-npm install flowguard ioredis     # Redis  (good when you already run Redis)
+npm install sagaflow pg          # Postgres (recommended for most backends)
+npm install sagaflow ioredis     # Redis  (good when you already run Redis)
 ```
 
-Both are peer dependencies — flowguard itself has zero runtime dependencies.
+Both are peer dependencies — sagaflow itself has zero runtime dependencies.
 
 ## Your first flow
 
 ```ts
-import { createFlow } from 'flowguard';
+import { createFlow } from 'sagaflow';
 
 const signup = createFlow<{ email: string }>('signup')
   .step('createUser', {
@@ -44,7 +44,7 @@ Three things just happened:
 
 1. **Type inference.** Inside `sendWelcomeEmail`, TypeScript knows `ctx.results.createUser.id` is a string — because `createUser`'s `run` returned `{ id, email }`.
 2. **Compensation registered.** If `sendWelcomeEmail` had thrown, `createUser.compensate` would have fired automatically.
-3. **State persisted.** By default flowguard uses `MemoryStorage`. Swap it for Postgres and the flow survives restarts.
+3. **State persisted.** By default sagaflow uses `MemoryStorage`. Swap it for Postgres and the flow survives restarts.
 
 ## Make it idempotent
 
@@ -74,7 +74,7 @@ Plug in a durable adapter:
 
 ```ts
 import { Pool } from 'pg';
-import { PostgresStorage } from 'flowguard/storage/postgres';
+import { PostgresStorage } from 'sagaflow/storage/postgres';
 
 const storage = new PostgresStorage({
   pool: new Pool({ connectionString: process.env.DATABASE_URL }),
