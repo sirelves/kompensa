@@ -40,6 +40,13 @@ export interface SerializedError {
 /**
  * Persisted state for a single step execution. Written to storage after every
  * transition so crashed executions can resume from the last successful step.
+ *
+ * For parallel step groups (created via {@link Flow.parallel}), each branch is
+ * persisted under `branches[branchName]` as its own {@link StepState}. The
+ * group itself uses the same `name`, `status`, `attempts` (= max across
+ * branches), and timestamps as a regular step. Single steps leave `branches`
+ * undefined — the field is purely additive and existing persisted states load
+ * unchanged.
  */
 export interface StepState {
   name: string;
@@ -50,6 +57,18 @@ export interface StepState {
   result?: unknown;
   error?: SerializedError;
   compensationError?: SerializedError;
+  /**
+   * Set only for parallel step groups. Map of branch name → branch state.
+   * Absent on regular sequential steps for backwards compatibility with
+   * persisted state written by kompensa &lt; 0.3.
+   */
+  branches?: Record<string, StepState>;
+  /**
+   * Marks this step as a parallel group. Useful when reading persisted state
+   * to distinguish a group from a regular step that happens to have no
+   * branches recorded yet. Absent on regular sequential steps.
+   */
+  kind?: 'sequential' | 'parallel';
 }
 
 /**
@@ -128,6 +147,67 @@ export interface StepDefinition<TInput, TResults, TResult> {
   timeout?: number;
   /** Skip this step when the predicate returns true. */
   skipIf?: (ctx: StepContext<TInput, TResults>) => boolean | Promise<boolean>;
+}
+
+/**
+ * Definition of a single branch inside a parallel step group. Identical to
+ * {@link StepDefinition} except the branch name is the object key in the group
+ * map rather than a separate argument.
+ *
+ * @internal — exposed via {@link ParallelStepDefinition}.
+ */
+export type ParallelBranchDefinition<TInput, TResults, TResult> = Omit<
+  StepDefinition<TInput, TResults, TResult>,
+  never
+>;
+
+/**
+ * Map of branch name → branch definition. Used by {@link Flow.parallel}.
+ * The TypeScript inference machinery picks each branch's result type from its
+ * `run` return value, so `ctx.results.<groupName>.<branchName>` is fully typed
+ * in downstream steps.
+ */
+export type ParallelStepDefinition<
+  TInput,
+  TResults,
+  TBranches extends Record<string, ParallelBranchDefinition<TInput, TResults, unknown>>,
+> = TBranches & {
+  /**
+   * Optional group-level timeout in milliseconds. When set, the entire group
+   * (all branches) must complete within this window or the group fails with a
+   * {@link StepTimeoutError}. Per-branch `timeout` still applies independently.
+   */
+  // Note: branches are nominal keys — this object never carries options of its
+  // own at the type level. Options are passed via the second argument of
+  // Flow.parallel(name, branches, options).
+};
+
+/**
+ * Options for a parallel step group, passed as the third argument of
+ * {@link Flow.parallel}.
+ */
+export interface ParallelGroupOptions {
+  /**
+   * Group-level timeout in milliseconds. The group fails if all branches do
+   * not settle within this window. Per-branch `timeout` still applies. Default:
+   * undefined (no group-level timeout, only per-branch timeouts apply).
+   */
+  groupTimeout?: number;
+  /**
+   * When `true`, compensation of branches in this group runs sequentially in
+   * the reverse order branches completed. When `false` (default), compensation
+   * runs in parallel via Promise.allSettled. Use sequential compensation only
+   * when there is a causal dependency between branches that requires ordering.
+   */
+  compensateSerially?: boolean;
+  /**
+   * When `true` (default), if any branch fails the group aborts the remaining
+   * branches via the shared AbortSignal. When `false`, all branches run to
+   * completion regardless of sibling failures (failures are still surfaced).
+   * Fail-fast is the recommended default; disable only for observability or
+   * when branches are fully independent.
+   */
+  abortOnFailure?: boolean;
 }
 
 /**

@@ -22,6 +22,9 @@ export type {
   // Core
   StepContext,
   StepDefinition,
+  ParallelBranchDefinition,
+  ParallelStepDefinition,
+  ParallelGroupOptions,
   RetryPolicy,
   ExecuteOptions,
   FlowConfig,
