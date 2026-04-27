@@ -142,6 +142,32 @@ Subpath exports (lazy, optional peer deps):
 
 - `kompensa/storage/postgres` → `PostgresStorage` (peer: `pg ^8`)
 - `kompensa/storage/redis` → `RedisStorage` (peer: `ioredis ^5`)
+- `kompensa/observability/otel` → `createOtelHooks` (peer: `@opentelemetry/api ^1`)
+
+OpenTelemetry adapter usage:
+
+```ts
+import { trace } from '@opentelemetry/api';
+import { createFlow } from 'kompensa';
+import { createOtelHooks } from 'kompensa/observability/otel';
+
+const flow = createFlow('checkout', {
+  hooks: createOtelHooks({
+    tracer: trace.getTracer('orders'),
+    spanPrefix: 'kompensa',                  // optional, default
+    baseAttributes: { 'service.name': 'orders' }, // optional
+  }),
+});
+```
+
+Span hierarchy emitted by the adapter:
+
+- `kompensa.flow.<flowName>` — root span per execution.
+- `kompensa.step.<stepName>` — one child span per sequential step.
+- `kompensa.step.<group>.<branch>` — one child span per parallel branch.
+- `kompensa.compensate.<stepName>` — only when rollback runs.
+
+Retries appear as `retry` events on the same step span; failures call `recordException(error)` so stack traces show up on the tracing backend. Status is `OK` for success/skipped and `ERROR` for failed/compensated.
 
 **Do not invent additional symbols.** If a feature does not appear above, it does not exist in the package.
 

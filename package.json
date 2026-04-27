@@ -78,6 +78,11 @@
       "import": "./dist/storage/redis.js",
       "require": "./dist/storage/redis.cjs"
     },
+    "./observability/otel": {
+      "types": "./dist/observability/otel.d.ts",
+      "import": "./dist/observability/otel.js",
+      "require": "./dist/observability/otel.cjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -108,10 +113,14 @@
     "release:major": "npm version major -m \"chore(release): v%s\" && git push --follow-tags"
   },
   "peerDependencies": {
+    "@opentelemetry/api": "^1.0.0",
     "ioredis": "^5.0.0",
     "pg": "^8.0.0"
   },
   "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    },
     "ioredis": {
       "optional": true
     },
@@ -120,6 +129,7 @@
     }
   },
   "devDependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "@types/node": "^20.11.0",
     "@types/pg": "^8.11.0",
     "@vitest/coverage-v8": "^1.3.0",

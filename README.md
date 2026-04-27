@@ -257,7 +257,7 @@ NetInfo.addEventListener(async (net) => {
 | `RedisStorage` with Redlock-style lock          | ✅ v0.2  |
 | Distributed lock (multi-worker safety)          | ✅ v0.2  |
 | Parallel step groups (fan-out/fan-in)           | ✅ v0.3  |
-| OpenTelemetry adapter                           | 🗓️ v0.3 |
+| OpenTelemetry adapter                           | ✅ v0.3.1|
 | `useFlow()` React hook                          | 🗓️ v0.3 |
 
 ---
@@ -309,6 +309,20 @@ createFlow<{ orderId: string }>('checkout')
 ```
 
 Branches run via `Promise.all` with a shared `AbortSignal` — when one fails, siblings are aborted (fail-fast by default; pass `{ abortOnFailure: false }` to disable). Compensation runs in parallel by default; pass `{ compensateSerially: true }` for reverse-completion-order rollback when there is a causal dependency. Crash recovery skips already-`success` branches on resume.
+
+**OpenTelemetry tracing** — opt-in via the `kompensa/observability/otel` subpath. Plug it into `FlowConfig.hooks` and your existing OTel pipeline picks up flow + per-step spans (with retries as events on the same span and parallel branches under dot-notation `group.branch` names):
+
+```ts
+import { trace } from '@opentelemetry/api';
+import { createFlow } from 'kompensa';
+import { createOtelHooks } from 'kompensa/observability/otel';
+
+createFlow('checkout', {
+  hooks: createOtelHooks({ tracer: trace.getTracer('orders') }),
+});
+```
+
+Peer dep `@opentelemetry/api ^1` is **optional** — only required when this subpath is imported.
 
 **Idempotency** states:
 
@@ -472,7 +486,7 @@ See **[docs/api.md](./docs/api.md)** for the full reference, or the [TSDoc](./sr
 ## Roadmap
 
 - **v0.2** ✅ — durable storage (Postgres, Redis) · distributed locks · integration tests
-- **v0.3** 🚧 — **parallel step groups (fan-out/fan-in) ✅** · OpenTelemetry adapter · `useFlow()` React hook
+- **v0.3** 🚧 — **parallel step groups (fan-out/fan-in) ✅** · **OpenTelemetry adapter ✅** · `useFlow()` React hook
 - **v0.4** — scheduler integration (cron / delayed retries) · SQLite adapter for mobile
 
 Track progress in [issues](https://github.com/sirelves/kompensa/issues) and [milestones](https://github.com/sirelves/kompensa/milestones).

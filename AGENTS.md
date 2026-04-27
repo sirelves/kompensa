@@ -85,11 +85,12 @@ CompensateEvent
 Subpath exports:
 
 ```
-kompensa/storage/postgres   →  PostgresStorage   (peer: pg ^8)
-kompensa/storage/redis      →  RedisStorage      (peer: ioredis ^5)
+kompensa/storage/postgres     →  PostgresStorage   (peer: pg ^8)
+kompensa/storage/redis        →  RedisStorage      (peer: ioredis ^5)
+kompensa/observability/otel   →  createOtelHooks   (peer: @opentelemetry/api ^1)
 ```
 
-If a symbol does not appear above, **it does not exist** — do not generate imports for it. Do not autocomplete `kompensa.useFlow`, `kompensa.parallel`, `kompensa/scheduler`, etc. — those are roadmap items, not shipped API.
+If a symbol does not appear above, **it does not exist** — do not generate imports for it. Do not autocomplete `kompensa.useFlow`, `kompensa/scheduler`, etc. — those are roadmap items, not shipped API.
 
 ---
 

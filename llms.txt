@@ -90,6 +90,7 @@ Subpath exports (lazy, optional peer deps):
 
 - `kompensa/storage/postgres` → `PostgresStorage` (peer: `pg ^8`)
 - `kompensa/storage/redis` → `RedisStorage` (peer: `ioredis ^5`)
+- `kompensa/observability/otel` → `createOtelHooks` (peer: `@opentelemetry/api ^1`) — returns a `FlowHooks` object emitting `kompensa.flow.<name>`, `kompensa.step.<name>`, `kompensa.compensate.<name>` spans with retries as events
 
 ## Resources
 

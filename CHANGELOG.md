@@ -2,6 +2,45 @@
 
 All notable changes to **kompensa** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
 
+## [0.3.1] — 2026-04-27
+
+### Added — OpenTelemetry adapter
+
+Second feature of v0.3. **Fully additive** — opt-in via a new subpath export, no changes to anything you already wrote.
+
+- **New subpath:** `kompensa/observability/otel`. Peer dep `@opentelemetry/api ^1` (optional — only required when this subpath is imported).
+- **`createOtelHooks({ tracer, spanPrefix?, baseAttributes? })`** returns a `FlowHooks` object. Plug it directly into `FlowConfig.hooks`:
+
+  ```ts
+  import { trace } from '@opentelemetry/api';
+  import { createFlow } from 'kompensa';
+  import { createOtelHooks } from 'kompensa/observability/otel';
+
+  const flow = createFlow('checkout', {
+    hooks: createOtelHooks({ tracer: trace.getTracer('orders') }),
+  });
+  ```
+
+- **Span hierarchy** mirrors the flow lifecycle:
+  - `kompensa.flow.<flowName>` — root span per flow execution.
+  - `kompensa.step.<stepName>` — one child span per sequential step.
+  - `kompensa.step.<group>.<branch>` — one child span per parallel branch (matches the existing dot-notation hook stepName).
+  - `kompensa.compensate.<stepName>` — sibling span emitted only when rollback runs.
+- **Retries** become `retry` events on the same step span (cleaner backend traces vs. one span per attempt). The first attempt opens the span; subsequent attempts add `attempt` events; the span ends on `onStepEnd`.
+- **Attributes** follow OTel naming convention: `kompensa.flow.name`, `kompensa.flow.id`, `kompensa.flow.resumed`, `kompensa.flow.status`, `kompensa.flow.duration_ms`, `kompensa.step.name`, `kompensa.step.index`, `kompensa.step.status`, `kompensa.step.attempts`, `kompensa.step.duration_ms`. Custom `baseAttributes` (e.g., `service.name`, `deployment.env`) are merged onto every span.
+- **Status mapping**: success → `SpanStatusCode.OK`; failure → `SpanStatusCode.ERROR` with `recordException(error)` so stack traces appear on the tracing backend.
+- **Defensive**: tracer errors do not affect flow execution. Hook failures are caught and logged at `warn` level by the executor (existing behavior, now exercised by an OTel-specific test).
+
+### Tests
+
+- **78 tests total** (50 unit + 14 parallel + 7 new OTel + 7 lock/retry/storage existing) green on Node 18 / 20 / 22.
+- New `test/otel.test.ts` covers flow + step span lifecycle, retry-as-event, error mapping, compensation span, parallel branch hierarchy, custom prefix + base attributes, and tracer-throws survival.
+
+### Internals
+
+- Build adds the `observability/otel` entry to `tsup` so `@opentelemetry/api` stays external — bundle size of the core unchanged.
+- `package.json` adds `@opentelemetry/api ^1` to `peerDependencies` and marks it optional in `peerDependenciesMeta`.
+
 ## [0.3.0] — 2026-04-27
 
 ### Added — parallel step groups (fan-out / fan-in)
