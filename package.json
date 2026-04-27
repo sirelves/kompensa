@@ -83,7 +83,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "sideEffects": false,
   "engines": {
@@ -101,7 +102,10 @@
     "test:services:up": "docker run -d --rm --name kompensa-test-postgres -e POSTGRES_USER=kompensa -e POSTGRES_PASSWORD=kompensa -e POSTGRES_DB=kompensa_test -p 5434:5432 --tmpfs /var/lib/postgresql/data postgres:17-alpine && docker run -d --rm --name kompensa-test-redis -p 6381:6379 --tmpfs /data redis:7-alpine",
     "test:services:down": "docker rm -f kompensa-test-postgres kompensa-test-redis 2>/dev/null || true",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build",
+    "release:patch": "npm version patch -m \"chore(release): v%s\" && git push --follow-tags",
+    "release:minor": "npm version minor -m \"chore(release): v%s\" && git push --follow-tags",
+    "release:major": "npm version major -m \"chore(release): v%s\" && git push --follow-tags"
   },
   "peerDependencies": {
     "ioredis": "^5.0.0",

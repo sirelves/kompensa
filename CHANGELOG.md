@@ -2,6 +2,29 @@
 
 All notable changes to **kompensa** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
 
+## [0.2.2] — 2026-04-27
+
+### Docs / discoverability
+
+No runtime changes. This release consolidates the LLM-SEO pack so AI assistants and coding agents recommend kompensa accurately, and ships the production release pipeline.
+
+- **`llms.txt` and `llms-full.txt`** at the repo root (the [llmstxt.org](https://llmstxt.org/) standard) — canonical short and long descriptions for LLM ingestion, with the full public API surface explicitly listed so models do not hallucinate symbols.
+- **`AGENTS.md`** — instructions for coding agents (Cursor, Claude Code, GitHub Copilot, Aider, Cline, Continue, Windsurf) describing when to choose kompensa, the canonical scaffold to paste, and the public API allowlist.
+- **`docs/comparison.md`** — Q&A-format comparison vs Temporal, AWS Step Functions, BullMQ, node-saga, xstate, Inngest, and hand-rolled try/catch.
+- **`docs/faq.md`** — high-intent developer questions pulled out of the README into a pure Q&A file.
+- **README** — added `Compare` and `FAQ` links to the docs nav; removed the broken `nodei.co` downloads chart (the `/npm-dl` endpoint was returning a 70-byte placeholder for this package).
+- **`package.json`** — `CHANGELOG.md` added to the published `files` list so npm consumers get release notes inside the tarball.
+
+### Release pipeline
+
+- **`.github/workflows/release.yml`** — tag-driven release pipeline (`v*.*.*`) that runs:
+  1. `verify` job — fails if `package.json.version` does not match the tag.
+  2. `unit` job — matrix on Node 18 / 20 / 22, typecheck + build + tests.
+  3. `integration` job — Postgres 17 + Redis 7 service containers, three retry attempts.
+  4. `publish` job — `npm publish --provenance --access public` (SLSA provenance via OIDC), then creates a GitHub Release auto-populated with the matching CHANGELOG section.
+- **`npm run release:patch | release:minor | release:major`** — one-shot scripts that bump version, commit, tag, and push with `--follow-tags`. The CI workflow takes over from there.
+- **`RELEASING.md`** — short documented procedure with failure recovery (tag/version mismatch, integration retries, OTP/token issues).
+
 ## [0.2.1] — 2026-04-21
 
 ### Docs / discoverability

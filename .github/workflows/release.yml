@@ -1,0 +1,180 @@
+name: Release
+
+# Triggered by pushing a tag like v0.2.2 / v0.3.0. The tag commit must point
+# at a package.json whose `version` matches the tag (without the `v`); the
+# workflow validates this before doing anything destructive.
+#
+# Required secrets:
+#   NPM_TOKEN — automation token with publish scope. 2FA "auth-and-writes"
+#               compatible. Set at: Settings → Secrets and variables → Actions.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # needed to create GitHub Release
+  id-token: write   # needed for npm publish --provenance (OIDC)
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- 1. verify
+  verify:
+    name: verify (tag matches package.json)
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: validate tag against package.json
+        id: check
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=v$TAG_VERSION  package.json=v$PACKAGE_VERSION"
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::Tag/version mismatch: tag=v$TAG_VERSION  package.json=v$PACKAGE_VERSION"
+            exit 1
+          fi
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+  # ----------------------------------------------------------------- 2. unit
+  unit:
+    name: unit (node ${{ matrix.node }})
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  # ---------------------------------------------------------- 3. integration
+  integration:
+    name: integration (postgres + redis)
+    needs: verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kompensa
+          POSTGRES_PASSWORD: kompensa
+          POSTGRES_DB: kompensa_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U kompensa -d kompensa_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6381:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      TEST_POSTGRES_URL: postgres://kompensa:kompensa@localhost:5434/kompensa_test
+      TEST_REDIS_URL: redis://localhost:6381
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: integration tests (with retry)
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            echo "::group::integration attempt $attempt"
+            if npm run test:integration; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed, retrying..."
+            sleep 5
+          done
+          echo "::error::integration tests failed after 3 attempts"
+          exit 1
+
+  # ------------------------------------------------------------- 4. publish
+  publish:
+    name: publish to npm + create GitHub Release
+    needs: [verify, unit, integration]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed by Release notes generation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run build
+      - name: assert dist exists
+        run: |
+          set -e
+          test -f dist/index.js
+          test -f dist/index.cjs
+          test -f dist/index.d.ts
+          test -f dist/storage/postgres.js
+          test -f dist/storage/redis.js
+          test -f dist/storage/memory.js
+      - name: publish (with provenance)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -e
+          VERSION="${{ needs.verify.outputs.version }}"
+          # Pull the section "## [VERSION]" up to the next "## [" heading.
+          NOTES="$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v$VERSION. See CHANGELOG.md for details."
+          fi
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
