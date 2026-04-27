@@ -15,7 +15,7 @@ Zero runtime dependencies.
 [![license](https://img.shields.io/npm/l/kompensa?color=blue)](./LICENSE)
 [![CI](https://github.com/sirelves/kompensa/actions/workflows/ci.yml/badge.svg)](https://github.com/sirelves/kompensa/actions/workflows/ci.yml)
 
-[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [❓ FAQ](#faq) · [📈 Download trends](https://npm-stat.com/charts.html?package=kompensa) · [📦 npm](https://www.npmjs.com/package/kompensa) · [🐙 GitHub](https://github.com/sirelves/kompensa)
+[📚 Docs](./docs) · [🚀 Getting started](./docs/getting-started.md) · [🧩 Recipes](./docs/recipes) · [⚖️ Compare](./docs/comparison.md) · [❓ FAQ](./docs/faq.md) · [📈 Download trends](https://npm-stat.com/charts.html?package=kompensa) · [📦 npm](https://www.npmjs.com/package/kompensa) · [🐙 GitHub](https://github.com/sirelves/kompensa)
 
 <a href="https://npm-stat.com/charts.html?package=kompensa">
   <img src="https://nodei.co/npm-dl.png?height=3&months=3" alt="downloads chart" />

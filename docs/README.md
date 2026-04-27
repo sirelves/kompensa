@@ -10,3 +10,5 @@
 - **[API reference](./api.md)** — every exported function, class and type
 - **[Testing your flows](./testing.md)** — in-process testing with MemoryStorage, integration with real adapters
 - **[Operations](./operations.md)** — production checklist, observability, troubleshooting
+- **[Comparison](./comparison.md)** — vs Temporal, Step Functions, BullMQ, node-saga, xstate, Inngest
+- **[FAQ](./faq.md)** — top developer questions, pure Q&A
