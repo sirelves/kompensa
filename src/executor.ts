@@ -25,7 +25,21 @@ import { generateId } from './utils/id.js';
 
 export interface RegisteredStep {
   name: string;
+  /** `'sequential'` (default) or `'parallel'` for fan-out/fan-in groups. */
+  kind?: 'sequential' | 'parallel';
+  /**
+   * For sequential steps this carries the step body. For parallel groups it is
+   * `undefined` — the executor reads `branches`/`parallelOptions` instead.
+   */
   definition: StepDefinition<unknown, Record<string, unknown>, unknown>;
+  /**
+   * Set only when `kind === 'parallel'`. Map of branch name → branch
+   * definition (same shape as a regular step). The executor runs all branches
+   * concurrently, persisting each one under `state.steps[i].branches[branchName]`.
+   */
+  branches?: Record<string, StepDefinition<unknown, Record<string, unknown>, unknown>>;
+  /** Set only when `kind === 'parallel'`. Group-level options. */
+  parallelOptions?: import('./types.js').ParallelGroupOptions;
 }
 
 function errorMessage(err: unknown): string {
@@ -49,7 +63,7 @@ function hydrateError(serialized?: FlowState['error']): Error {
 function createInitialState(
   flowName: string,
   flowId: string,
-  stepNames: string[],
+  steps: RegisteredStep[],
   input: unknown,
   metadata: Record<string, unknown>,
 ): FlowState {
@@ -59,11 +73,26 @@ function createInitialState(
     flowId,
     status: 'pending',
     input,
-    steps: stepNames.map<StepState>((name) => ({
-      name,
-      status: 'pending',
-      attempts: 0,
-    })),
+    steps: steps.map<StepState>((s) =>
+      s.kind === 'parallel'
+        ? {
+            name: s.name,
+            status: 'pending',
+            attempts: 0,
+            kind: 'parallel',
+            branches: Object.fromEntries(
+              Object.keys(s.branches ?? {}).map((bn) => [
+                bn,
+                { name: bn, status: 'pending', attempts: 0 },
+              ]),
+            ),
+          }
+        : {
+            name: s.name,
+            status: 'pending',
+            attempts: 0,
+          },
+    ),
     currentStepIndex: 0,
     metadata,
     createdAt: now,
@@ -96,23 +125,32 @@ function buildContext<TInput>(args: {
 }
 
 async function runSingleAttempt<TInput>(
-  step: RegisteredStep,
+  definition: StepDefinition<unknown, Record<string, unknown>, unknown>,
+  unitName: string,
   ctx: StepContext<TInput, Record<string, unknown>>,
   timeoutMs: number | undefined,
 ): Promise<unknown> {
   const exec = Promise.resolve().then(() =>
-    (step.definition.run as (c: typeof ctx) => unknown | Promise<unknown>)(ctx),
+    (definition.run as (c: typeof ctx) => unknown | Promise<unknown>)(ctx),
   );
   if (timeoutMs && timeoutMs > 0) {
-    return withTimeout(exec, timeoutMs, step.name);
+    return withTimeout(exec, timeoutMs, unitName);
   }
   return exec;
 }
 
-async function runStepWithRetry<TInput>(args: {
-  step: RegisteredStep;
+/**
+ * Generalized retry loop used by both regular sequential steps and individual
+ * branches inside a parallel group. The caller supplies the {@link StepState}
+ * to mutate, the hook stepName (`group.branch` for branches), and a `persist`
+ * callback that saves the parent {@link FlowState}.
+ */
+async function runUnitWithRetry<TInput>(args: {
+  definition: StepDefinition<unknown, Record<string, unknown>, unknown>;
+  hookStepName: string;
   stepIndex: number;
-  state: FlowState;
+  unitState: import('./types.js').StepState;
+  persist: () => Promise<void>;
   input: TInput;
   results: Record<string, unknown>;
   metadata: Record<string, unknown>;
@@ -123,12 +161,13 @@ async function runStepWithRetry<TInput>(args: {
   hooks: FlowHooks | undefined;
   defaultRetry: RetryPolicy | undefined;
   defaultTimeout: number | undefined;
-  storage: StorageAdapter;
 }): Promise<unknown> {
   const {
-    step,
+    definition,
+    hookStepName,
     stepIndex,
-    state,
+    unitState,
+    persist,
     input,
     results,
     metadata,
@@ -139,23 +178,21 @@ async function runStepWithRetry<TInput>(args: {
     hooks,
     defaultRetry,
     defaultTimeout,
-    storage,
   } = args;
 
-  const policy = step.definition.retry ?? defaultRetry;
+  const policy = definition.retry ?? defaultRetry;
   const maxAttempts = Math.max(1, getMaxAttempts(policy));
-  const timeout = step.definition.timeout ?? defaultTimeout;
-  const stepState = state.steps[stepIndex]!;
+  const timeout = definition.timeout ?? defaultTimeout;
 
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (signal.aborted) throw new FlowAbortedError(signal.reason);
 
-    stepState.attempts = attempt;
-    stepState.status = 'running';
-    if (attempt === 1) stepState.startedAt = Date.now();
-    await storage.save(state);
+    unitState.attempts = attempt;
+    unitState.status = 'running';
+    if (attempt === 1) unitState.startedAt = Date.now();
+    await persist();
 
     const ctx = buildContext({
       input,
@@ -165,19 +202,19 @@ async function runStepWithRetry<TInput>(args: {
       signal,
       flowId,
       flowName,
-      stepName: step.name,
-      logger: logger.child?.({ stepName: step.name, attempt }) ?? logger,
+      stepName: hookStepName,
+      logger: logger.child?.({ stepName: hookStepName, attempt }) ?? logger,
     });
 
     await invokeHook(
       hooks,
       'onStepStart',
-      { flowName, flowId, metadata, stepName: step.name, stepIndex, attempt },
+      { flowName, flowId, metadata, stepName: hookStepName, stepIndex, attempt },
       logger,
     );
 
     try {
-      const result = await runSingleAttempt(step, ctx, timeout);
+      const result = await runSingleAttempt(definition, hookStepName, ctx, timeout);
       return result;
     } catch (err) {
       lastError = err;
@@ -196,7 +233,7 @@ async function runStepWithRetry<TInput>(args: {
           flowName,
           flowId,
           metadata,
-          stepName: step.name,
+          stepName: hookStepName,
           stepIndex,
           attempt,
           error: err,
@@ -210,6 +247,302 @@ async function runStepWithRetry<TInput>(args: {
   }
 
   throw lastError;
+}
+
+/**
+ * Derive a child AbortSignal that aborts when the parent aborts AND can be
+ * aborted independently (used to fail-fast sibling branches when one fails).
+ * Hand-rolled instead of `AbortSignal.any` for Node 18 compatibility.
+ */
+function deriveSignal(parent: AbortSignal): {
+  signal: AbortSignal;
+  abort: (reason?: unknown) => void;
+} {
+  const ctrl = new AbortController();
+  if (parent.aborted) {
+    ctrl.abort(parent.reason);
+  } else {
+    parent.addEventListener('abort', () => ctrl.abort(parent.reason), { once: true });
+  }
+  return { signal: ctrl.signal, abort: (r) => ctrl.abort(r) };
+}
+
+/**
+ * Run a parallel step group. Each branch executes concurrently with its own
+ * retry loop. Branch state is persisted under `state.steps[stepIndex].branches[name]`
+ * so crash recovery can resume only the branches that did not finish.
+ *
+ * Behavior:
+ * - First failure aborts siblings via a derived signal when
+ *   `abortOnFailure !== false` (the default).
+ * - The whole group is wrapped in a `groupTimeout` if specified.
+ * - Returns the merged `{ [branchName]: result }` object on success; throws
+ *   the first branch error on failure (with surviving compensations handled
+ *   by `runCompensation`).
+ */
+async function runParallelGroup<TInput>(args: {
+  step: RegisteredStep;
+  stepIndex: number;
+  state: FlowState;
+  input: TInput;
+  results: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  signal: AbortSignal;
+  flowId: string;
+  flowName: string;
+  logger: Logger;
+  hooks: FlowHooks | undefined;
+  defaultRetry: RetryPolicy | undefined;
+  defaultTimeout: number | undefined;
+  storage: StorageAdapter;
+}): Promise<Record<string, unknown>> {
+  const {
+    step,
+    stepIndex,
+    state,
+    input,
+    results,
+    metadata,
+    signal,
+    flowId,
+    flowName,
+    logger,
+    hooks,
+    defaultRetry,
+    defaultTimeout,
+    storage,
+  } = args;
+
+  if (!step.branches) {
+    throw new Error(
+      `kompensa: internal — parallel step "${step.name}" missing branches map`,
+    );
+  }
+  const groupOpts = step.parallelOptions ?? {};
+  const abortOnFailure = groupOpts.abortOnFailure !== false;
+
+  const groupState = state.steps[stepIndex]!;
+  groupState.kind = 'parallel';
+  groupState.status = 'running';
+  groupState.startedAt ??= Date.now();
+  groupState.branches ??= {};
+
+  const branchNames = Object.keys(step.branches);
+  // Ensure every branch has its own StepState entry, even on first run.
+  for (const bn of branchNames) {
+    if (!groupState.branches[bn]) {
+      groupState.branches[bn] = { name: bn, status: 'pending', attempts: 0 };
+    }
+  }
+  await storage.save(state);
+
+  const branchResults: Record<string, unknown> = {};
+  // Pre-populate with cached results from previously successful branches so
+  // crash recovery skips them.
+  for (const bn of branchNames) {
+    const bs = groupState.branches[bn]!;
+    if (bs.status === 'success') {
+      branchResults[bn] = bs.result;
+    }
+  }
+
+  const persist = () => storage.save(state);
+  const { signal: groupSignal, abort: abortGroup } = deriveSignal(signal);
+
+  const branchPromises: Promise<void>[] = branchNames.map(async (branchName) => {
+    const bs = groupState.branches![branchName]!;
+    if (bs.status === 'success') return; // resume — already done
+
+    const definition = step.branches![branchName]!;
+    const hookStepName = `${step.name}.${branchName}`;
+    const branchStart = Date.now();
+
+    try {
+      const result = await runUnitWithRetry({
+        definition,
+        hookStepName,
+        stepIndex,
+        unitState: bs,
+        persist,
+        input,
+        results,
+        metadata,
+        signal: groupSignal,
+        flowId,
+        flowName,
+        logger,
+        hooks,
+        defaultRetry,
+        defaultTimeout,
+      });
+      bs.status = 'success';
+      bs.result = result;
+      bs.endedAt = Date.now();
+      branchResults[branchName] = result;
+      await persist();
+
+      await invokeHook(
+        hooks,
+        'onStepEnd',
+        {
+          flowName,
+          flowId,
+          metadata,
+          stepName: hookStepName,
+          stepIndex,
+          status: 'success',
+          attempts: bs.attempts,
+          durationMs: Date.now() - branchStart,
+          result,
+        },
+        logger,
+      );
+    } catch (err) {
+      bs.status = 'failed';
+      bs.error = serializeError(err);
+      bs.endedAt = Date.now();
+      await persist();
+
+      await invokeHook(
+        hooks,
+        'onStepEnd',
+        {
+          flowName,
+          flowId,
+          metadata,
+          stepName: hookStepName,
+          stepIndex,
+          status: 'failed',
+          attempts: bs.attempts,
+          durationMs: Date.now() - branchStart,
+          error: err,
+        },
+        logger,
+      );
+
+      if (abortOnFailure) abortGroup(err);
+      throw err;
+    }
+  });
+
+  const allBranches = Promise.allSettled(branchPromises);
+  const settled = groupOpts.groupTimeout
+    ? await withTimeout(allBranches, groupOpts.groupTimeout, step.name)
+    : await allBranches;
+
+  // Aggregate `attempts` on the group as the max across branches so callers
+  // see a meaningful number even when only some branches retried.
+  groupState.attempts = Math.max(
+    1,
+    ...branchNames.map((bn) => groupState.branches![bn]?.attempts ?? 1),
+  );
+
+  const failures = settled
+    .map((r, idx) => ({ result: r, name: branchNames[idx]! }))
+    .filter((x) => x.result.status === 'rejected') as Array<{
+    result: PromiseRejectedResult;
+    name: string;
+  }>;
+
+  if (failures.length === 0) {
+    return branchResults;
+  }
+
+  // Surface the first failure as the canonical error. Other failures remain
+  // visible via per-branch `error` fields in persisted state.
+  const first = failures[0]!;
+  throw first.result.reason;
+}
+
+/** Compensate a single unit (a regular step or one branch of a parallel group). */
+async function compensateUnit<TInput>(args: {
+  definition: StepDefinition<unknown, Record<string, unknown>, unknown>;
+  hookStepName: string;
+  stepIndex: number;
+  unitState: import('./types.js').StepState;
+  persist: () => Promise<void>;
+  input: TInput;
+  results: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  signal: AbortSignal;
+  flowId: string;
+  flowName: string;
+  logger: Logger;
+  hooks: FlowHooks | undefined;
+}): Promise<{ ok: true } | { ok: false; error: unknown }> {
+  const {
+    definition,
+    hookStepName,
+    stepIndex,
+    unitState,
+    persist,
+    input,
+    results,
+    metadata,
+    signal,
+    flowId,
+    flowName,
+    logger,
+    hooks,
+  } = args;
+
+  if (!definition.compensate) return { ok: true };
+  if (unitState.status !== 'success') return { ok: true };
+
+  unitState.status = 'compensating';
+  await persist();
+  await invokeHook(
+    hooks,
+    'onCompensate',
+    { flowName, flowId, metadata, stepName: hookStepName, stepIndex, status: 'compensating' },
+    logger,
+  );
+
+  const ctx = buildContext({
+    input,
+    results,
+    metadata,
+    attempt: 1,
+    signal,
+    flowId,
+    flowName,
+    stepName: hookStepName,
+    logger: logger.child?.({ stepName: hookStepName, phase: 'compensate' }) ?? logger,
+  });
+
+  try {
+    await (definition.compensate as (c: typeof ctx, r: unknown) => unknown | Promise<unknown>)(
+      ctx,
+      unitState.result,
+    );
+    unitState.status = 'compensated';
+    await persist();
+    await invokeHook(
+      hooks,
+      'onCompensate',
+      { flowName, flowId, metadata, stepName: hookStepName, stepIndex, status: 'compensated' },
+      logger,
+    );
+    return { ok: true };
+  } catch (err) {
+    unitState.compensationError = serializeError(err);
+    await persist();
+    await invokeHook(
+      hooks,
+      'onCompensate',
+      {
+        flowName,
+        flowId,
+        metadata,
+        stepName: hookStepName,
+        stepIndex,
+        status: 'failed',
+        error: err,
+      },
+      logger,
+    );
+    return { ok: false, error: err };
+  }
 }
 
 async function runCompensation<TInput>(args: {
@@ -228,66 +561,91 @@ async function runCompensation<TInput>(args: {
   const { steps, state, results, input, metadata, logger, hooks, flowId, flowName, signal, storage } =
     args;
   const errors: Array<{ step: string; error: unknown }> = [];
+  const persist = () => storage.save(state);
 
   for (let i = state.currentStepIndex; i >= 0; i--) {
     const step = steps[i];
     const stepState = state.steps[i];
     if (!step || !stepState) continue;
-    if (!step.definition.compensate) continue;
+
+    // ---- Parallel group compensation ----
+    if (step.kind === 'parallel' && step.branches && stepState.branches) {
+      // Only compensate branches that actually succeeded.
+      const successful = Object.entries(stepState.branches).filter(
+        ([, bs]) => bs.status === 'success',
+      );
+      if (successful.length === 0) continue;
+
+      const compensateSerially = step.parallelOptions?.compensateSerially === true;
+      const ordered = compensateSerially
+        ? // Reverse-completion-order rollback: branch that finished last is
+          // compensated first (LIFO on causal chain).
+          [...successful].sort(([, a], [, b]) => (b.endedAt ?? 0) - (a.endedAt ?? 0))
+        : successful;
+
+      stepState.status = 'compensating';
+      await persist();
+
+      const compensateOne = async (branchName: string) => {
+        const bs = stepState.branches![branchName]!;
+        const def = step.branches![branchName]!;
+        const result = await compensateUnit({
+          definition: def,
+          hookStepName: `${step.name}.${branchName}`,
+          stepIndex: i,
+          unitState: bs,
+          persist,
+          input,
+          results,
+          metadata,
+          signal,
+          flowId,
+          flowName,
+          logger,
+          hooks,
+        });
+        if (!result.ok) {
+          errors.push({ step: `${step.name}.${branchName}`, error: result.error });
+        }
+      };
+
+      if (compensateSerially) {
+        for (const [bn] of ordered) {
+          await compensateOne(bn);
+        }
+      } else {
+        await Promise.allSettled(ordered.map(([bn]) => compensateOne(bn)));
+      }
+
+      // Group status: compensated when every successful branch is compensated;
+      // otherwise leave 'compensating' so observers can see partial rollback.
+      const allCompensated = Object.values(stepState.branches).every(
+        (bs) => bs.status !== 'success',
+      );
+      if (allCompensated) stepState.status = 'compensated';
+      await persist();
+      continue;
+    }
+
+    // ---- Sequential step compensation ----
     if (stepState.status !== 'success') continue;
-
-    stepState.status = 'compensating';
-    await storage.save(state);
-    await invokeHook(
-      hooks,
-      'onCompensate',
-      { flowName, flowId, metadata, stepName: step.name, stepIndex: i, status: 'compensating' },
-      logger,
-    );
-
-    const ctx = buildContext({
+    const result = await compensateUnit({
+      definition: step.definition,
+      hookStepName: step.name,
+      stepIndex: i,
+      unitState: stepState,
+      persist,
       input,
       results,
       metadata,
-      attempt: 1,
       signal,
       flowId,
       flowName,
-      stepName: step.name,
-      logger: logger.child?.({ stepName: step.name, phase: 'compensate' }) ?? logger,
+      logger,
+      hooks,
     });
-
-    try {
-      await (step.definition.compensate as (c: typeof ctx, r: unknown) => unknown | Promise<unknown>)(
-        ctx,
-        stepState.result,
-      );
-      stepState.status = 'compensated';
-      await storage.save(state);
-      await invokeHook(
-        hooks,
-        'onCompensate',
-        { flowName, flowId, metadata, stepName: step.name, stepIndex: i, status: 'compensated' },
-        logger,
-      );
-    } catch (err) {
-      stepState.compensationError = serializeError(err);
-      errors.push({ step: step.name, error: err });
-      await storage.save(state);
-      await invokeHook(
-        hooks,
-        'onCompensate',
-        {
-          flowName,
-          flowId,
-          metadata,
-          stepName: step.name,
-          stepIndex: i,
-          status: 'failed',
-          error: err,
-        },
-        logger,
-      );
+    if (!result.ok) {
+      errors.push({ step: step.name, error: result.error });
     }
   }
 
@@ -416,13 +774,7 @@ async function runExecution<TInput, TResults extends object>(
 
   const resumed = !!state;
   if (!state) {
-    state = createInitialState(
-      flowName,
-      flowId,
-      steps.map((s) => s.name),
-      input,
-      metadata,
-    );
+    state = createInitialState(flowName, flowId, steps, input, metadata);
   } else {
     // Resume path: keep original input, merge metadata.
     state.status = 'running';
@@ -504,22 +856,43 @@ async function runExecution<TInput, TResults extends object>(
           }
         }
 
-        const result = await runStepWithRetry({
-          step,
-          stepIndex: i,
-          state,
-          input: effectiveInput,
-          results,
-          metadata,
-          signal,
-          flowId,
-          flowName,
-          logger,
-          hooks,
-          defaultRetry,
-          defaultTimeout,
-          storage,
-        });
+        let result: unknown;
+        if (step.kind === 'parallel') {
+          result = await runParallelGroup({
+            step,
+            stepIndex: i,
+            state,
+            input: effectiveInput,
+            results,
+            metadata,
+            signal,
+            flowId,
+            flowName,
+            logger,
+            hooks,
+            defaultRetry,
+            defaultTimeout,
+            storage,
+          });
+        } else {
+          result = await runUnitWithRetry({
+            definition: step.definition,
+            hookStepName: step.name,
+            stepIndex: i,
+            unitState: stepState,
+            persist: () => storage.save(state),
+            input: effectiveInput,
+            results,
+            metadata,
+            signal,
+            flowId,
+            flowName,
+            logger,
+            hooks,
+            defaultRetry,
+            defaultTimeout,
+          });
+        }
 
         stepState.status = 'success';
         stepState.result = result;

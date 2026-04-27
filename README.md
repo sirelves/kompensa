@@ -256,7 +256,7 @@ NetInfo.addEventListener(async (net) => {
 | `PostgresStorage` with advisory lock            | ✅ v0.2  |
 | `RedisStorage` with Redlock-style lock          | ✅ v0.2  |
 | Distributed lock (multi-worker safety)          | ✅ v0.2  |
-| Parallel step groups (fan-out/fan-in)           | 🗓️ v0.3 |
+| Parallel step groups (fan-out/fan-in)           | ✅ v0.3  |
 | OpenTelemetry adapter                           | 🗓️ v0.3 |
 | `useFlow()` React hook                          | 🗓️ v0.3 |
 
@@ -292,6 +292,23 @@ retry: {
 ```
 
 Throw `PermanentError` to dead-stop retries; `TransientError` is always eligible.
+
+**Parallel step groups (fan-out / fan-in)** — call `.parallel(name, branches, options?)` instead of `.step()` when you have independent work that should run concurrently:
+
+```ts
+createFlow<{ orderId: string }>('checkout')
+  .parallel('externals', {
+    pricing:  { run: (ctx) => api.pricing(ctx.input.orderId) },
+    shipping: { run: (ctx) => api.shipping(ctx.input.orderId) },
+    tax:      { run: (ctx) => api.tax(ctx.input.orderId), retry: { maxAttempts: 3 } },
+  })
+  .step('charge', {
+    run: (ctx) => charge(ctx.results.externals.pricing.amount),
+    //                              ^^^^^^^^^ each branch is statically typed
+  });
+```
+
+Branches run via `Promise.all` with a shared `AbortSignal` — when one fails, siblings are aborted (fail-fast by default; pass `{ abortOnFailure: false }` to disable). Compensation runs in parallel by default; pass `{ compensateSerially: true }` for reverse-completion-order rollback when there is a causal dependency. Crash recovery skips already-`success` branches on resume.
 
 **Idempotency** states:
 
@@ -455,7 +472,7 @@ See **[docs/api.md](./docs/api.md)** for the full reference, or the [TSDoc](./sr
 ## Roadmap
 
 - **v0.2** ✅ — durable storage (Postgres, Redis) · distributed locks · integration tests
-- **v0.3** — parallel step groups (fan-out/fan-in) · OpenTelemetry adapter · `useFlow()` React hook
+- **v0.3** 🚧 — **parallel step groups (fan-out/fan-in) ✅** · OpenTelemetry adapter · `useFlow()` React hook
 - **v0.4** — scheduler integration (cron / delayed retries) · SQLite adapter for mobile
 
 Track progress in [issues](https://github.com/sirelves/kompensa/issues) and [milestones](https://github.com/sirelves/kompensa/milestones).

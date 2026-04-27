@@ -2,6 +2,49 @@
 
 All notable changes to **kompensa** will be documented here. This project follows [Semantic Versioning](https://semver.org/) — once we hit 1.0. Until then, minor versions may include breaking changes; check the upgrade notes below.
 
+## [0.3.0] — 2026-04-27
+
+### Added — parallel step groups (fan-out / fan-in)
+
+The first feature of v0.3. **Fully additive** — every existing flow keeps working with no code changes.
+
+- **`.parallel(name, branches, options?)`** — new builder method on `Flow`. Each branch is a regular step definition (`run`, `compensate`, `retry`, `timeout`, `skipIf`) and runs concurrently with its siblings. Results merge under `ctx.results.<groupName>.<branchName>`, fully typed via inference from the branches object.
+
+  ```ts
+  createFlow<{ orderId: string }>('checkout')
+    .parallel('externals', {
+      pricing:  { run: (ctx) => api.pricing(ctx.input.orderId) },
+      shipping: { run: (ctx) => api.shipping(ctx.input.orderId) },
+      tax:      { run: (ctx) => api.tax(ctx.input.orderId), retry: { maxAttempts: 3 } },
+    })
+    .step('charge', {
+      run: (ctx) => charge(ctx.results.externals.pricing.amount),
+    });
+  ```
+
+- **Fail-fast by default**. When any branch fails, surviving branches receive an `AbortSignal.aborted` event so they can cancel their work cooperatively. Disable with `{ abortOnFailure: false }` if branches are fully independent and full observability is preferred over fast failure.
+- **Compensation runs in parallel** by default (symmetric with execution). Pass `{ compensateSerially: true }` to roll back in reverse-completion-order when there is a causal dependency between branches.
+- **`groupTimeout`** caps the entire group; per-branch `timeout` still applies independently.
+- **Crash recovery** persists each branch as `state.steps[i].branches[branchName]`. On resume, already-`success` branches are skipped — only `pending` / `running` / `failed` branches re-execute.
+- **Hooks** fire per branch with dot-notation `stepName: 'group.branch'`, plus the existing parent-step hooks for the group as a whole. Compatible with OpenTelemetry-style span hierarchies.
+- **New types** exported from `kompensa`:
+  - `ParallelBranchDefinition`
+  - `ParallelStepDefinition`
+  - `ParallelGroupOptions`
+- **`StepState`** gains optional `branches?: Record<string, StepState>` and `kind?: 'sequential' | 'parallel'` fields. States persisted by older versions load unchanged because both fields are optional.
+
+### Tests
+
+- **78 tests total** (50 unit + 14 new parallel + 14 lock/retry/storage existing) all green on Node 18 / 20 / 22.
+- New `test/parallel.test.ts` covers concurrency, retry-per-branch, fail-fast abort propagation, group timeout, parallel and serial compensation, crash recovery, builder validation, hooks dot-notation, and compile-time type accumulation.
+
+### Internals
+
+- Refactored `runStepWithRetry` into a generalized `runUnitWithRetry` shared between sequential steps and parallel branches.
+- New `runParallelGroup` orchestrates branch execution with derived `AbortSignal` (Node-18-compatible — does not depend on `AbortSignal.any`).
+- `runCompensation` now dispatches on `step.kind`: parallel groups compensate via `Promise.allSettled` (default) or sorted serial walk by `endedAt` desc when `compensateSerially: true`.
+- `createInitialState` writes `kind: 'parallel'` and an empty `branches` map for parallel groups so persisted state shape is consistent from the first save.
+
 ## [0.2.2] — 2026-04-27
 
 ### Docs / discoverability

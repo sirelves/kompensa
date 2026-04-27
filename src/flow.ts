@@ -1,9 +1,24 @@
 import type {
   ExecuteOptions,
   FlowConfig,
+  ParallelBranchDefinition,
+  ParallelGroupOptions,
   StepDefinition,
 } from './types.js';
 import { executeFlow, type RegisteredStep } from './executor.js';
+
+/**
+ * Compute the result type of a parallel group from its branches map.
+ * For a branches object `{ a: { run: () => A }, b: { run: () => B } }`
+ * the inferred type is `{ a: A; b: B }`. Promise return types are unwrapped
+ * to match the final `ctx.results.<group>.<branch>` value.
+ */
+type Awaited2<T> = T extends Promise<infer U> ? U : T;
+type ParallelBranchResults<TBranches> = {
+  [K in keyof TBranches]: TBranches[K] extends { run: (...args: never[]) => infer R }
+    ? Awaited2<R>
+    : never;
+};
 
 /**
  * A Flow is a typed, ordered list of steps. The result type accumulates as
@@ -41,9 +56,92 @@ export class Flow<TInput, TResults extends object = EmptyResults> {
     return this as unknown as Flow<TInput, TResults & { [K in TName]: TResult }>;
   }
 
+  /**
+   * Append a parallel step group (fan-out / fan-in). Each branch runs
+   * concurrently via `Promise.all`. Results merge into a single object keyed
+   * by branch name and become available downstream as
+   * `ctx.results.<groupName>.<branchName>`, fully typed.
+   *
+   * Behavior:
+   * - Branches run concurrently. By default, the first failing branch aborts
+   *   its siblings via a shared `AbortSignal` (`abortOnFailure: true`).
+   * - Compensation runs in parallel by default. Pass
+   *   `{ compensateSerially: true }` when there is a causal dependency
+   *   between branches that requires reverse-order rollback.
+   * - Per-branch `retry`, `timeout`, and `compensate` work exactly like a
+   *   regular step. A group-level `groupTimeout` bounds the entire group.
+   * - Crash recovery resumes only branches that did not finish — already
+   *   `success` branches are skipped, just like sequential steps.
+   *
+   * @example
+   * createFlow<{ orderId: string }>('checkout')
+   *   .parallel('externals', {
+   *     pricing:  { run: (ctx) => api.pricing(ctx.input.orderId) },
+   *     shipping: { run: (ctx) => api.shipping(ctx.input.orderId) },
+   *     tax:      { run: (ctx) => api.tax(ctx.input.orderId), retry: { maxAttempts: 3 } },
+   *   })
+   *   .step('charge', {
+   *     run: (ctx) => charge(ctx.results.externals.pricing.amount),
+   *   })
+   */
+  parallel<
+    TName extends string,
+    TBranches extends Record<string, ParallelBranchDefinition<TInput, TResults, unknown>>,
+  >(
+    name: TName,
+    branches: TBranches,
+    options: ParallelGroupOptions = {},
+  ): Flow<TInput, TResults & { [K in TName]: ParallelBranchResults<TBranches> }> {
+    if (this._steps.some((s) => s.name === name)) {
+      throw new Error(`kompensa: duplicate step name "${String(name)}" in flow "${this.name}"`);
+    }
+    const branchNames = Object.keys(branches);
+    if (branchNames.length === 0) {
+      throw new Error(
+        `kompensa: parallel group "${String(name)}" in flow "${this.name}" has no branches`,
+      );
+    }
+    for (const bn of branchNames) {
+      if (!bn || typeof bn !== 'string') {
+        throw new Error(
+          `kompensa: parallel group "${String(name)}" has an invalid branch name`,
+        );
+      }
+    }
+
+    // Sentinel definition so the executor never accidentally runs a parallel
+    // group via the sequential code path. The real dispatch lives in the
+    // executor's parallel branch (added in v0.3 executor work). If this stub
+    // ever fires, it means the executor mis-routed — fail loudly.
+    const stubDefinition: StepDefinition<unknown, Record<string, unknown>, unknown> = {
+      run: () => {
+        throw new Error(
+          `kompensa: internal error — parallel group "${String(name)}" was routed through the sequential executor`,
+        );
+      },
+    };
+
+    this._steps.push({
+      name,
+      kind: 'parallel',
+      definition: stubDefinition,
+      branches: branches as unknown as RegisteredStep['branches'],
+      parallelOptions: options,
+    });
+
+    return this as unknown as Flow<
+      TInput,
+      TResults & { [K in TName]: ParallelBranchResults<TBranches> }
+    >;
+  }
+
   /** Expose the registered step list for inspection (read-only copy). */
-  get steps(): ReadonlyArray<{ name: string }> {
-    return this._steps.map((s) => ({ name: s.name }));
+  get steps(): ReadonlyArray<{ name: string; kind: 'sequential' | 'parallel'; branches?: string[] }> {
+    return this._steps.map((s) => ({
+      name: s.name,
+      kind: (s.kind ?? 'sequential') as 'sequential' | 'parallel',
+      ...(s.branches ? { branches: Object.keys(s.branches) } : {}),
+    }));
   }
 
   /**

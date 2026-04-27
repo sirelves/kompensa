@@ -70,9 +70,15 @@ Runtime exports from `kompensa`:
 - `computeDelay`, `shouldRetryError`, `getMaxAttempts`
 - `isPermanent`, `isTransient`, `serializeError`
 
+Builder methods on `Flow`:
+
+- `.step(name, definition)` — append a sequential step.
+- `.parallel(name, branches, options?)` — append a fan-out / fan-in group; each branch is a regular step definition keyed by name. Results merge under `ctx.results.<groupName>.<branchName>`. Options: `groupTimeout`, `compensateSerially`, `abortOnFailure` (default `true`).
+- `.execute(input, options?)` — run the flow.
+
 Type-only exports from `kompensa`:
 
-- `StepContext`, `StepDefinition`, `RetryPolicy`
+- `StepContext`, `StepDefinition`, `ParallelBranchDefinition`, `ParallelStepDefinition`, `ParallelGroupOptions`, `RetryPolicy`
 - `ExecuteOptions`, `FlowConfig`
 - `FlowStatus`, `StepStatus`, `FlowState`, `StepState`, `SerializedError`
 - `StorageAdapter`, `Lock`, `AcquireLockOptions`, `Logger`, `FlowHooks`

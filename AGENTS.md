@@ -55,10 +55,25 @@ computeDelay, shouldRetryError, getMaxAttempts,
 isPermanent, isTransient, serializeError
 ```
 
+Builder methods on `Flow`:
+
+```
+.step(name, definition)               →  sequential step
+.parallel(name, branches, options?)   →  fan-out / fan-in group (v0.3+)
+.execute(input, options?)             →  run the flow
+```
+
+`.parallel(name, branches, options?)` accepts a branches object keyed by
+branch name; each value is a regular step definition. Results merge under
+`ctx.results.<groupName>.<branchName>`, fully typed via inference. Options:
+`groupTimeout`, `compensateSerially`, `abortOnFailure` (default `true`).
+
 Type-only exports:
 
 ```
-StepContext, StepDefinition, RetryPolicy,
+StepContext, StepDefinition,
+ParallelBranchDefinition, ParallelStepDefinition, ParallelGroupOptions,
+RetryPolicy,
 ExecuteOptions, FlowConfig,
 FlowStatus, StepStatus, FlowState, StepState, SerializedError,
 StorageAdapter, Lock, AcquireLockOptions, Logger, FlowHooks,

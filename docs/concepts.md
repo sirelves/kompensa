@@ -100,6 +100,54 @@ try {
 
 **Compensations must be idempotent.** kompensa persists compensation status so crash-during-compensate can be resumed, but your logic should be safe to re-run (e.g., "refund if charge exists" rather than "refund blindly").
 
+## Parallel step groups (fan-out / fan-in)
+
+`.parallel(name, branches, options?)` runs multiple branches concurrently and merges their results into one named entry. Each branch accepts the same step definition shape (`run`, `compensate`, `retry`, `timeout`, `skipIf`).
+
+```ts
+createFlow<{ orderId: string }>('checkout')
+  .parallel('externals', {
+    pricing:  { run: (ctx) => api.pricing(ctx.input.orderId) },
+    shipping: { run: (ctx) => api.shipping(ctx.input.orderId) },
+    tax:      { run: (ctx) => api.tax(ctx.input.orderId), retry: { maxAttempts: 3 } },
+  })
+  .step('charge', {
+    run: (ctx) => charge(ctx.results.externals.pricing.amount),
+  });
+```
+
+**Execution semantics**
+
+- Branches run via `Promise.allSettled` with a shared `AbortSignal` derived from the flow's signal.
+- **Fail-fast** is on by default: when any branch rejects, surviving branches receive `signal.aborted` so they can cancel their work cooperatively.
+- **`{ abortOnFailure: false }`** runs every branch to completion regardless of sibling failures. The flow still fails — this just gives you full per-branch observability.
+- **`{ groupTimeout: ms }`** caps the entire group; per-branch `timeout` still applies independently.
+
+**Compensation**
+
+- Default: branches with a `compensate` run **in parallel** via `Promise.allSettled` (symmetric with execution).
+- **`{ compensateSerially: true }`**: walks branches in **reverse-completion-order** by `endedAt`. Use when there is a causal dependency between branches (e.g., branch B reserved a resource the cleanup of branch A depends on).
+
+**Crash recovery**
+
+Each branch persists under `state.steps[i].branches[branchName]` as its own `StepState`. On resume, branches with `status === 'success'` are skipped — only `pending` / `running` / `failed` branches re-execute.
+
+**Hooks**
+
+Per-branch lifecycle events fire with dot-notation `stepName: 'group.branch'`:
+
+```
+onStepStart   stepName: 'externals.pricing'  attempt: 1
+onStepStart   stepName: 'externals.shipping' attempt: 1
+onStepStart   stepName: 'externals.tax'      attempt: 1
+onStepEnd     stepName: 'externals.pricing'  status: 'success'
+onStepEnd     stepName: 'externals.shipping' status: 'success'
+onStepRetry   stepName: 'externals.tax'      attempt: 2
+onStepEnd     stepName: 'externals.tax'      status: 'success'
+```
+
+This is intentionally compatible with OpenTelemetry-style span hierarchies (parent group span + child branch spans).
+
 ## Retry
 
 ```ts

@@ -108,9 +108,29 @@ Runtime exports from `kompensa`:
 - `computeDelay`, `shouldRetryError`, `getMaxAttempts`
 - `isPermanent`, `isTransient`, `serializeError`
 
+Builder methods on `Flow`:
+
+- `.step(name, definition)` — append a sequential step.
+- `.parallel(name, branches, options?)` — append a fan-out / fan-in group. Branches are an object keyed by branch name, each value is a regular step definition (`run`, `compensate`, `retry`, `timeout`, `skipIf`). Results merge under `ctx.results.<groupName>.<branchName>`, fully typed via inference. Options: `groupTimeout` (overall group timeout in ms), `compensateSerially` (default `false` — when `true`, compensation runs in reverse-completion-order), `abortOnFailure` (default `true` — when a branch fails, surviving branches receive an `AbortSignal.aborted`).
+- `.execute(input, options?)` — run the flow.
+
+Example with parallel groups:
+
+```ts
+createFlow<{ orderId: string }>('checkout')
+  .parallel('externals', {
+    pricing:  { run: (ctx) => api.pricing(ctx.input.orderId) },
+    shipping: { run: (ctx) => api.shipping(ctx.input.orderId) },
+    tax:      { run: (ctx) => api.tax(ctx.input.orderId), retry: { maxAttempts: 3 } },
+  })
+  .step('charge', {
+    run: (ctx) => charge(ctx.results.externals.pricing.amount),
+  });
+```
+
 Type-only exports from `kompensa`:
 
-- `StepContext`, `StepDefinition`, `RetryPolicy`
+- `StepContext`, `StepDefinition`, `ParallelBranchDefinition`, `ParallelStepDefinition`, `ParallelGroupOptions`, `RetryPolicy`
 - `ExecuteOptions`, `FlowConfig`
 - `FlowStatus`, `StepStatus`, `FlowState`, `StepState`, `SerializedError`
 - `StorageAdapter`, `Lock`, `AcquireLockOptions`, `Logger`, `FlowHooks`
