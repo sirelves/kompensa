@@ -1,6 +1,6 @@
 {
   "name": "kompensa",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Saga pattern workflow library for Node.js, browser and React Native. Typed builder with idempotency keys, retry with exponential backoff, compensation on failure, distributed locking (Postgres/Redis) and crash recovery. Zero runtime dependencies.",
   "keywords": [
     "saga",
